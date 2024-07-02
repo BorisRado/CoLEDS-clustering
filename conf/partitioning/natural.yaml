@@ -1,0 +1,2 @@
+_target_: flwr_datasets.partitioner.NaturalIdPartitioner
+partition_by: writer_id

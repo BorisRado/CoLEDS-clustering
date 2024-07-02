@@ -1,0 +1,11 @@
+__pycache__
+dcgm
+outputs
+wandb
+
+*.pdf
+*.err
+*.out
+*.ipynb
+*.env
+*.txt

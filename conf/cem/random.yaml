@@ -1,0 +1,2 @@
+_target_: src.cem.random_cem.RandomCEM
+dimension: 64

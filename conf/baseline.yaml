@@ -1,0 +1,10 @@
+defaults:
+  - partitioning: dirichlet
+  - cem: label
+  - dataset: cifar10
+  - _self_
+general:
+  seed: 10
+wandb:
+  log_to_wandb: true
+  loggin_keys: []

@@ -1,0 +1,4 @@
+_target_: flwr_datasets.partitioner.ShardPartitioner
+num_partitions: 250
+partition_by: "label"
+num_shards_per_partition: 2

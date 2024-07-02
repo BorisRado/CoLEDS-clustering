@@ -1,0 +1,20 @@
+defaults:
+  - partitioning: dirichlet
+  - dataset: mnist
+  - model: simple_net
+  - optimizer: adam
+  - _self_
+folder: ...  # insert the path of the folder where the model is
+general:
+  seed: 80
+train_config:
+  batch_size: 32
+  n_clusters: ...
+  proximal_mu: -1
+  fraction_fit: 0.2
+final_evaluation:
+  n_holdout_clients: 500
+
+wandb:
+  log_to_wandb: true
+  loggin_keys: []

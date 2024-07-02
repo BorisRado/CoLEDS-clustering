@@ -1,0 +1,3 @@
+_target_: src.cem.wd_cem.WeightDiffCEM
+ft_epochs: 1
+batch_size: 32

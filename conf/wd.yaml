@@ -1,0 +1,16 @@
+defaults:
+  - partitioning: dirichlet
+  - dataset: cifar10
+  - cem: wd
+  - optimizer: adam  # used both for FL training and getting weight difference
+  - model: simple_net
+  - _self_
+general:
+  seed: 10
+train_config:
+  batch_size: 32 # used both for FL training and getting weight difference
+  n_fl_epochs: 20
+  fl_epochs_eval_freq: 4
+wandb:
+  log_to_wandb: true
+  loggin_keys: []

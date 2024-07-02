@@ -1,0 +1,2 @@
+_target_: src.cem.es_cem.EmbeddingSpaceCEM
+reduction_stats: ["mean"]

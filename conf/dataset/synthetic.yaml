@@ -1,0 +1,7 @@
+dataset_name: synthetic
+input_shape: [3, 32, 32]
+n_classes: 5
+test_percentage: 0.2
+p: 0.5
+dataset_size: 20
+n_datasets: 600

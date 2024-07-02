@@ -1,0 +1,14 @@
+defaults:
+  - dataset: synthetic
+  - _self_
+folder: ...  # insert the path of the folder where the model is
+general:
+  seed: 80
+final_evaluation:
+  n_holdout_clients: 100
+  dataset_size: 20
+  p: 0.9
+
+wandb:
+  log_to_wandb: true
+  loggin_keys: []

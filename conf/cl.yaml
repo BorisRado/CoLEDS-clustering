@@ -1,0 +1,16 @@
+defaults:
+  - partitioning: dirichlet
+  - model: pointnet
+  - dataset: cifar10
+  - optimizer: adam
+  - _self_
+general:
+  seed: 10
+train_config:
+  batch_size: 32
+  temperature: 0.2
+  n_iterations: 100
+  fraction_fit: 0.5
+wandb:
+  log_to_wandb: true
+  loggin_keys: []
