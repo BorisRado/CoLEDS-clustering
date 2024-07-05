@@ -1,6 +1,11 @@
+import warnings
+
 import torch
 
 from src.cem.cem import CEM, check_dtype
+
+
+warnings.filterwarnings('ignore')
 
 
 class SingleModelCEM(CEM):

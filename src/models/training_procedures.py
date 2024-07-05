@@ -4,9 +4,7 @@ from random import sample
 import wandb
 import torch
 import torch.nn as nn
-from flwr.server.strategy.aggregate import aggregate
 
-from src.utils.parameters import get_parameters, set_parameters, get_gradients
 from src.utils.cl_client import ContrastiveClient
 from src.models.losses import ContrastiveLoss
 from src.models.helper import init_optimizer
@@ -89,7 +87,7 @@ def train_contrastive(model, n_iterations, temperature, dataloaders, fraction_fi
         optimizer.step()
 
 
-def train_ce(model, dataloader, proximal_mu=-1, **kwargs):
+def train_ce(model, dataloader, proximal_mu=-1, optimizer=None, **kwargs):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -101,7 +99,8 @@ def train_ce(model, dataloader, proximal_mu=-1, **kwargs):
     model.to(device)
 
     model.train()
-    optimizer = init_optimizer(model.parameters(), **kwargs)
+    if optimizer is None:
+        optimizer = init_optimizer(model.parameters(), **kwargs)
 
     criterion = nn.CrossEntropyLoss()
     for batch in dataloader:
@@ -124,7 +123,7 @@ def train_ce(model, dataloader, proximal_mu=-1, **kwargs):
         optimizer.step()
     model.to("cpu")
 
-def train_supervised_autoencoder(model, dataloader, ae_weight, proximal_mu=-1, **kwargs):
+def train_supervised_autoencoder(model, dataloader, ae_weight, proximal_mu=-1, optimizer=None, **kwargs):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # print(f"training on {device} {len(dataloader.dataset)}")
 
@@ -134,7 +133,8 @@ def train_supervised_autoencoder(model, dataloader, ae_weight, proximal_mu=-1, *
     model.train()
     model.to(device)
 
-    optimizer = init_optimizer(model.parameters(), **kwargs)
+    if optimizer is None:
+        optimizer = init_optimizer(model.parameters(), **kwargs)
 
     ce = nn.CrossEntropyLoss()
     mse = nn.MSELoss()

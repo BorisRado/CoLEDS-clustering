@@ -1,3 +1,5 @@
+from functools import partial
+
 from src.utils.stochasticity import TempRng
 from src.utils.wandb import log_table
 from src.testing.test_all import test_all
@@ -10,3 +12,17 @@ def eval_fn(cem, trainsets, valsets, n_classes, experiment_folder, iter, **kwarg
     for k, values in results.items():
         log_table(values, experiment_folder, f"{cem_name}_{k}_{iter}", iter=iter)
     return results["correlation"][0]["correlation"]
+
+
+def get_evaluation_fn(cfg, trainsets, valsets, experiment_folder):
+    if cfg.dataset.dataset_name != "synthetic":
+        eval_fn_ = partial(
+            eval_fn,
+            trainsets=trainsets,
+            valsets=valsets,
+            n_classes=cfg.dataset.n_classes,
+            experiment_folder=experiment_folder,
+        )
+    else:
+        eval_fn_ = lambda *args, **kwargs: 1
+    return eval_fn_

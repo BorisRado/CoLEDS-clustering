@@ -1,13 +1,20 @@
 from copy import deepcopy
 from functools import partial
 
+import ray
+import numpy as np
 import torch
 from flwr.simulation import start_simulation
 from flwr.server.strategy import FedAvg
 from flwr.server import ServerConfig
+from flwr.server.strategy.aggregate import aggregate
 
-from src.flower.client import client_fn
+from src.flower.client import FlowerClient
 from src.flower.strategy import get_strategy_with_chechpoint
+from src.utils.stochasticity import set_seed
+from src.utils.parameters import get_parameters, set_parameters
+from src.models.helper import init_optimizer
+from src.models.evaluation_procedures import test as test_accuracy
 
 
 def weighted_average(metrics):
@@ -20,50 +27,77 @@ def weighted_average(metrics):
     return out
 
 
+def add_defaults_to_strategy_kwargs(kwargs):
+    kwargs.setdefault("fraction_fit", 0.1)
+    kwargs.setdefault("fraction_evaluate", 0.2)
+    kwargs.setdefault("evaluation_frequency", 5)
+    kwargs.setdefault("min_fit_clients", 1)
+    kwargs.setdefault("min_evaluate_clients", 1)
+    kwargs.setdefault("min_available_clients", 1)
+    kwargs.setdefault("evaluate_metrics_aggregation_fn", weighted_average)
+    kwargs.setdefault("fit_metrics_aggregation_fn", weighted_average)
+    print("Strategy kwargs:")
+    print(kwargs)
+
+
 def train_flower(
     model,
-    trainsets,
-    valsets,
-    batch_size,
+    client_fn_kwargs,
     optim_kwargs,
     n_rounds,
     experiment_folder,
-    train_fn,
-    fraction_fit,
+    strategy_kwargs,
+    seed,
     model_save_name="fl_model.pth",
 ):
-    client_fn_ = partial(
-        client_fn,
-        trainsets=trainsets,
-        valsets=valsets,
-        model=model,
-        batch_size=batch_size,
-        train_fn=train_fn
-    )
+    assert set(client_fn_kwargs.keys()) == {"trainsets", "valsets", "batch_size", "train_fn"}
+
+    trainsets = client_fn_kwargs.pop("trainsets")
+    valsets = client_fn_kwargs.pop("valsets")
+    batch_size = client_fn_kwargs["batch_size"]
+    train_fn = client_fn_kwargs["train_fn"]
+
+    if not ray.is_initialized():
+        ray.init()
+
+    trainsets_refs = [ray.put(ts) for ts in trainsets]
+    valsets_refs = [ray.put(ts) for ts in valsets]
+
+    def client_fn(cid: str):
+        """Create and return an instance of Flower `Client`."""
+        cid = int(cid)
+        ts = ray.get(trainsets_refs[cid])
+        vs = ray.get(valsets_refs[cid])
+
+        return FlowerClient(
+            trainset=ts,
+            valset=vs,
+            model=deepcopy(model),
+            batch_size=batch_size,
+            train_fn=train_fn
+        ).to_client()
 
     file = experiment_folder / model_save_name
     strategy_clz = get_strategy_with_chechpoint(FedAvg, file, deepcopy(model))
+
+    add_defaults_to_strategy_kwargs(strategy_kwargs)
     strategy = strategy_clz(
-        evaluation_frequency=1,
-        fraction_fit=fraction_fit,
-        fraction_evaluate=0.1,
-        min_fit_clients=1,
-        min_evaluate_clients=1,
-        min_available_clients=1,
-        evaluate_metrics_aggregation_fn=weighted_average,
-        fit_metrics_aggregation_fn=weighted_average,
+        **strategy_kwargs,
         on_fit_config_fn=lambda *args, **kwargs: optim_kwargs
     )
 
-    cr = {"num_cpus": 6}
+    cr = {"num_cpus": 8}
     if torch.cuda.is_available():
-        cr["num_gpus"] = 0.2
-    history = start_simulation(
-        client_fn=client_fn_,
+        cr["num_gpus"] = .25
+
+    set_seed(seed)
+    start_simulation(
+        client_fn=client_fn,
         num_clients=len(trainsets),
         config=ServerConfig(num_rounds=n_rounds),
         strategy=strategy,
-        client_resources=cr
+        client_resources=cr,
+        keep_initialised=True
     )
     # history.losses_distributed
     model.load_state_dict(torch.load(file))

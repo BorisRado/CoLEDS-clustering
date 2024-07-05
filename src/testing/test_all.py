@@ -1,3 +1,6 @@
+from functools import partial
+from concurrent.futures import ThreadPoolExecutor
+
 import numpy as np
 
 from src.testing.similarity import compute_similarity
@@ -17,12 +20,12 @@ def test_all(cem, trainsets, valsets, n_classes, max_clusters=20, **kwargs):
         "train": trainsets,
         "val": valsets
     }
-    clusterer = Clusterer(cem, datasets)
 
     label_dist = np.vstack([
         get_label_distribution(ds, n_classes) for ds in valsets
     ])
 
+    clusterer = Clusterer(cem, datasets)
     results = {
         "silhouette": get_silhouette_scores(clusterer.init_embeddings["train"], max_clusters=max_clusters),
         "correlation": compute_correlation(label_dist, clusterer.init_embeddings["val"]),
@@ -30,7 +33,6 @@ def test_all(cem, trainsets, valsets, n_classes, max_clusters=20, **kwargs):
     }
     if "femnist" not in dataset_name:
         holdout_set = get_holdout_dataset(dataset_name)
-        results["robustness"] = test_robustness(trainsets, holdout_set, clusterer, n_classes, max_clusters=max_clusters, **kwargs),
-
+        results["robustness"] = test_robustness(trainsets, holdout_set, clusterer, n_classes, max_clusters=max_clusters, **kwargs)
 
     return results

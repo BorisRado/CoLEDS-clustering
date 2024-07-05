@@ -1,17 +1,14 @@
-from functools import partial
-
 import hydra
 from hydra.utils import instantiate
 
 from hydra.core.config_store import OmegaConf
 
 from src.data.utils import get_datasets_from_cfg
-from src.utils.evaluation import eval_fn
-from src.utils.stochasticity import set_seed, TempRng
+from src.flower.train import train_flower
+from src.utils.evaluation import get_evaluation_fn
+from src.utils.stochasticity import TempRng
 from src.utils.wandb import init_wandb, finish_wandb
 from src.models.training_procedures import train_ce
-from src.flower.train import train_flower
-
 
 
 @hydra.main(version_base=None, config_path="../conf", config_name="logit")
@@ -19,8 +16,13 @@ def run(cfg):
     print(OmegaConf.to_yaml(cfg))
     experiment_folder = init_wandb(cfg)
 
-    set_seed(cfg.general.seed)
-    trainsets, valsets = get_datasets_from_cfg(cfg)
+    if "dry_run" in cfg and cfg.dry_run is True:
+        print("DRY_RUN....")
+        finish_wandb()
+        return
+
+    with TempRng(cfg.general.seed):
+        trainsets, valsets = get_datasets_from_cfg(cfg)
 
     with TempRng(cfg.general.seed):
         model = instantiate(
@@ -29,28 +31,30 @@ def run(cfg):
             n_classes=cfg.dataset.n_classes
         )
 
-    if cfg.dataset.dataset_name != "synthetic":
-        eval_fn_ = partial(
-            eval_fn,
-            trainsets=trainsets,
-            valsets=valsets,
-            n_classes=cfg.dataset.n_classes,
-            experiment_folder=experiment_folder,
-        )
-    else:
-        eval_fn_ = lambda *args, **kwargs: 1
-
+    eval_fn = get_evaluation_fn(cfg, trainsets, valsets, experiment_folder)
 
     cem_fn = instantiate(
         cfg.cem,
         optim_kwargs=OmegaConf.to_container(cfg.optimizer),
         _partial_=True
     )
-    eval_fn_(
-        cem=cem_fn(init_model=model),
-        iter=-1
-    )
+    eval_fn(cem=cem_fn(init_model=model), iter=-1)
 
+    train_flower(
+        model,
+        client_fn_kwargs={
+            "trainsets": trainsets,
+            "valsets": valsets,
+            "batch_size": cfg.train_config.batch_size,
+            "train_fn": train_ce
+        },
+        optim_kwargs=OmegaConf.to_container(cfg.optimizer),
+        n_rounds=cfg.train_config.train_epochs,
+        experiment_folder=experiment_folder,
+        strategy_kwargs={"fraction_fit": 0.5, "fraction_evaluate": 1.0},
+        seed=cfg.general.seed
+    )
+    eval_fn(cem=cem_fn(init_model=model), iter=0)
     finish_wandb()
 
 

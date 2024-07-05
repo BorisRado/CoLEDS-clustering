@@ -1,9 +1,25 @@
 import copy
 
+import ray
 import numpy as np
 import torch
 from sklearn import preprocessing
 from sklearn.cluster import KMeans
+
+
+def _get_embedding(cem, dataset):
+    with torch.no_grad():
+        emb = cem.get_embedding(dataset)
+    return preprocessing.normalize(emb)
+
+
+@ray.remote(num_cpus=4, num_gpus=0.25 if torch.cuda.is_available() else 0.0)
+class ModelActor:
+    def __init__(self, cem):
+        self.cem = cem
+
+    def get_embedding(self, dataset):
+        return _get_embedding(self.cem, dataset)
 
 
 class Clusterer:
@@ -12,21 +28,19 @@ class Clusterer:
         super().__init__()
         self.cem = cem
         self.init_embeddings = {}
+
+        if not ray.is_initialized():
+            ray.init()
+        num_actors=4
+        actors = [ModelActor.remote(copy.deepcopy(cem)) for _ in range(num_actors)]
         for key, datasets in datasets_dict.items():
-            self.init_embeddings[key] = np.vstack([
-                self.get_embedding(ds) for ds in datasets
-            ])
+            futures = [actors[i % num_actors].get_embedding.remote(ds)
+                       for i, ds in enumerate(datasets)]
+            self.init_embeddings[key] = np.vstack(ray.get(futures))
             print(f"Initial embeddings shape [{key}]: {self.init_embeddings[key].shape}")
 
     def get_embedding(self, dataset):
-
-        # if self.cem.__class__.__name__ not in {"LabelCEM", "WeightDiffCEM"}:
-        #     dataset = copy.deepcopy(dataset)
-        #     dataset = dataset.remove_columns("label")
-
-        with torch.no_grad():
-            raw_emb = self.cem.get_embedding(dataset)
-        return preprocessing.normalize(raw_emb)
+        return _get_embedding(self.cem, dataset)
 
     def init_kmeans_model(self, n_clusters, partition="train"):
 

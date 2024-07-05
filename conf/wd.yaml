@@ -12,5 +12,5 @@ train_config:
   n_fl_epochs: 20
   fl_epochs_eval_freq: 4
 wandb:
-  log_to_wandb: true
+  log_to_wandb: false
   loggin_keys: []

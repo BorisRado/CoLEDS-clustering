@@ -35,7 +35,7 @@ def get_strategy_with_chechpoint(base_strategy, file, model):
             aggregated_parameters, aggregated_metrics = \
                 super().aggregate_fit(server_round, results, failures)
 
-            print(aggregated_metrics)
+            print(f"Fit metrics: {aggregated_metrics}")
             if aggregated_parameters is not None:
                 print(f"Saving round {server_round} aggregated_parameters...")
 
@@ -53,9 +53,10 @@ def get_strategy_with_chechpoint(base_strategy, file, model):
 
         def aggregate_evaluate(self, *args, **kwargs):
             res = super().aggregate_evaluate(*args, **kwargs)
-            print("metrics:", res[1])
 
+            print("Evaluation metrics:", res[1])
             print(f"Accuracy: {res[0]}")
+
             if wandb.run is not None:
                 wandb.log({"avg_accuracy": res[0]})
             self.accuracies.append(res[0])

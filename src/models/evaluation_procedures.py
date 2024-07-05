@@ -4,7 +4,6 @@ import torch
 def test(model, testloader):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"evaluation on {device} {len(testloader.dataset)}")
     model.to(device)
 
     forward_fn = lambda x: model["clf_head"](model["encoder"](x)) \

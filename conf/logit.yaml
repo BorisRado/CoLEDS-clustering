@@ -9,6 +9,7 @@ general:
   seed: 10
 train_config:
   batch_size: 32 # used both for FL training and getting weight difference
+  train_epochs: 30 # evaluate the CEM after trianing the model this many epochs
 wandb:
   log_to_wandb: false
   loggin_keys: []

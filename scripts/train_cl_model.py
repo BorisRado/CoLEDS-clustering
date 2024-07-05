@@ -1,4 +1,4 @@
-from functools import partial
+import copy
 
 import torch
 import hydra
@@ -10,7 +10,7 @@ from src.utils.stochasticity import set_seed, TempRng
 from src.cem.single_model_cem import SingleModelCEM
 from src.models.training_procedures import train_contrastive
 from src.models.helper import init_optimizer
-from src.utils.evaluation import eval_fn
+from src.utils.evaluation import get_evaluation_fn
 from src.utils.wandb import init_wandb, finish_wandb
 
 
@@ -28,19 +28,10 @@ def run(cfg):
     print("number of parameters: ", sum(p.numel() for p in model.parameters()))
 
     # get all comparison values, i.e. before training and simple CEMs
-    if cfg.dataset.dataset_name != "synthetic":
-        eval_fn_ = partial(
-            eval_fn,
-            trainsets=trainsets,
-            valsets=valsets,
-            n_classes=cfg.dataset.n_classes,
-            experiment_folder=experiment_folder,
-        )
-    else:
-        eval_fn_ = lambda *args, **kwargs: 1
+    eval_fn = get_evaluation_fn(cfg, trainsets, valsets, experiment_folder)
 
-    cem_fn = lambda mdl: SingleModelCEM(mdl)
-    best_correlation = eval_fn_(cem=cem_fn(model), iter=-1)
+    cem_fn = lambda mdl: SingleModelCEM(copy.deepcopy(mdl))
+    best_correlation = eval_fn(cem=cem_fn(model), iter=-1)
 
     trainloaders = get_dataloaders_with_replacement(
         trainsets,
@@ -63,13 +54,13 @@ def run(cfg):
             fraction_fit=cfg.train_config.fraction_fit,
             optimizer = optimizer
         )
-        tmp_corr = eval_fn_(cem=cem_fn(model), iter=idx)
+        tmp_corr = eval_fn(cem=cem_fn(model), iter=idx)
         print(f"Got correlation: {tmp_corr}")
         if cfg.dataset.dataset_name == "synthetic":
             torch.save(model.state_dict(), experiment_folder / "cem.pth")
             break
 
-        if tmp_corr > best_correlation:
+        if tmp_corr > best_correlation and idx <= 5:
             best_correlation = tmp_corr
             scheduler.step()
             idx += 1

@@ -6,5 +6,5 @@ defaults:
 general:
   seed: 10
 wandb:
-  log_to_wandb: true
+  log_to_wandb: false
   loggin_keys: []

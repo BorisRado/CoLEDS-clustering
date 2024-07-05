@@ -1,4 +1,4 @@
-import json
+import os
 from pathlib import Path
 
 import pandas as pd
@@ -28,6 +28,7 @@ def get_value(config, key):
 
 def init_wandb(cfg):
     load_dotenv(override=True)
+    print("IN MEMORY: ", os.getenv("HF_DATASETS_IN_MEMORY_MAX_SIZE"))
     config = OmegaConf.to_container(cfg)
 
     try:
@@ -51,7 +52,7 @@ def init_wandb(cfg):
     else:
         run_id = str(cfg.temp_run_id)
     exp_path = Path("data/raw") / run_id
-    exp_path.mkdir(parents=True, exist_ok=not cfg.wandb.log_to_wandb)
+    exp_path.mkdir(parents=True, exist_ok=False)
     OmegaConf.save(cfg, exp_path / "config.yaml")
 
     return exp_path

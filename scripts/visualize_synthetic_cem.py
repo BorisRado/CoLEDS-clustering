@@ -47,7 +47,7 @@ def run(cfg):
     for ds in tqdm(evalsets):
 
         shape, color = ds[0]["shape"], ds[0]["color"]
-        ds_ = train_test_split(ds, 0.001)[0]
+        ds_ = train_test_split(ds, 0.001, 10)[0]
         emb = clusterer.get_embedding(ds_)
 
         shapes.append(shape)

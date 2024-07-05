@@ -1,3 +1,7 @@
+import copy
+
+import ray
+import torch
 import numpy as np
 from torch.utils.data import Dataset
 
@@ -61,33 +65,52 @@ def _compute_cluster_robustness(
     return count / n_iterations
 
 
+@ray.remote(num_cpus=8, num_gpus=0.2 if torch.cuda.is_available() else 0.0)
+def _tmp(clusterer, n_clusters, label_distributions, trainsets, holdout_indices, holdout_set, **kwargs):
+    client_clusters = clusterer.init_kmeans_model(n_clusters=n_clusters)
+
+    out = []
+    print(f"Robustness for {n_clusters}")
+    for cluster_idx in range(n_clusters):
+        cluster_data = [
+            (label_distributions[idx], trainsets[idx].dataset.applied_data_transforms)
+            for idx, c in enumerate(client_clusters) if c == cluster_idx
+        ]
+        cluster_robustness = _compute_cluster_robustness(
+            clusterer=clusterer,
+            cluster_idx=cluster_idx,
+            holdout_indices=holdout_indices,
+            holdout_set=holdout_set,
+            cluster_client_data=cluster_data,
+            **kwargs
+        )
+        out.append({
+            "n_clusters": int(n_clusters),
+            "cluster_idx": int(cluster_idx),
+            "n_cluster_clients": len(cluster_data),
+            "robustness": float(cluster_robustness)
+        })
+    print(f"Robustness for {n_clusters} completed")
+    return out
+
+
+def _flatten(matrix):
+    flat_list = []
+    for row in matrix:
+        flat_list.extend(row)
+    return flat_list
+
+
 def test_robustness(trainsets, holdout_set, clusterer, n_classes, max_clusters=30, **kwargs):
     label_distributions = [get_label_distribution(ds, n_classes=n_classes) for ds in trainsets]
 
     holdout_indices = get_dataset_target_indices(holdout_set)
 
-    out = []
-    for n_clusters in range(1, max_clusters):
-        client_clusters = clusterer.init_kmeans_model(n_clusters=n_clusters)
-
-        for cluster_idx in range(n_clusters):
-            print(f"Robustness for {cluster_idx}/{n_clusters}")
-            cluster_data = [
-                (label_distributions[idx], trainsets[idx].dataset.applied_data_transforms)
-                for idx, c in enumerate(client_clusters) if c == cluster_idx
-            ]
-            cluster_robustness = _compute_cluster_robustness(
-                clusterer=clusterer,
-                cluster_idx=cluster_idx,
-                holdout_indices=holdout_indices,
-                holdout_set=holdout_set,
-                cluster_client_data=cluster_data,
-                **kwargs
-            )
-            out.append({
-                "n_clusters": n_clusters,
-                "cluster_idx": cluster_idx,
-                "n_cluster_clients": len(cluster_data),
-                "robustness": cluster_robustness
-            })
-    return out
+    if not ray.is_initialized():
+        ray.init()
+    futures = [
+        _tmp.remote(copy.deepcopy(clusterer), n_clusters, label_distributions, trainsets, holdout_indices, holdout_set, **kwargs)
+        for n_clusters in range(1, max_clusters)
+    ]
+    results = ray.get(futures)
+    return _flatten(results)

@@ -34,10 +34,6 @@ def generate_random_shape_image(shape, color):
         cross = plt.Polygon([[4, 10], [6, 10], [6, 6], [10, 6], [10, 4], [6, 4], [6, 0], [4, 0], [4, 4], [0, 4], [0, 6], [4, 6]], color=color)
         ax.add_patch(cross)
         label = 3
-    elif shape == 'line':
-        line = plt.Line2D([2, 8], [5, 5], color=color, linewidth=15)
-        ax.add_line(line)
-        label = 4
 
     fig.canvas.draw()
     buf = np.frombuffer(fig.canvas.buffer_rgba(), dtype=np.uint8)

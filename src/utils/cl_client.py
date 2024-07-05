@@ -1,4 +1,5 @@
-from src.models.helper import init_optimizer
+import ray
+
 from src.utils.parameters import get_gradients
 
 

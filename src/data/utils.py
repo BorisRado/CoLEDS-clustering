@@ -63,6 +63,7 @@ def get_datasets_from_cfg(cfg):
         for idx in range(3597):
             ds = torch.load(f"/home/radovib/femnist/{idx}.pth")
             ds.set_format("torch")
+            ds.info.dataset_name = "femnist"
             datasets.append(ds)
         datasets = [
             train_test_split(ds, cfg.dataset.test_percentage, cfg.general.seed)

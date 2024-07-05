@@ -18,21 +18,30 @@ from src.testing.accuracy import get_holdout_accuracy, get_femnist_holdout_accur
 
 def train_cluster(cfg, trainsets, valsets, experiment_folder, cluster_idx, fraction_fit):
     print(f"Training cluster {cluster_idx} - START")
+
     with TempRng(cfg.general.seed):
         model = instantiate(cfg.model, input_shape=cfg.dataset.input_shape, n_classes=cfg.dataset.n_classes)
+
     set_seed(cfg.general.seed)
     train_fn = partial(train_ce, proximal_mu=cfg.train_config.proximal_mu)
+
     model = train_flower(
         model=model,
-        trainsets=trainsets,
-        valsets=valsets,
-        batch_size=cfg.train_config.batch_size,
+        client_fn_kwargs={
+            "trainsets": trainsets,
+            "valsets": valsets,
+            "batch_size": cfg.train_config.batch_size,
+            "train_fn": train_fn
+        },
         optim_kwargs=OmegaConf.to_container(cfg.optimizer),
         n_rounds=150,
         experiment_folder=experiment_folder,
-        train_fn=train_fn,
-        fraction_fit=fraction_fit,
-        model_save_name=f"cluster_model_{cluster_idx}.pth"
+        strategy_kwargs={
+            "fraction_fit": fraction_fit,
+            "fraction_evaluate": 0.2
+        },
+        model_save_name=f"cluster_model_{cluster_idx}.pth",
+        seed=cfg.general.seed
     )
     print(f"Training cluster {cluster_idx} - ENDED")
 
@@ -58,7 +67,7 @@ def run(cfg):
 
     # predict the clusters
     if "femnist" in cfg.dataset.dataset_name:
-        n_holdout_clients = cfg.general.n_holdout_clients
+        n_holdout_clients = cfg.final_evaluation.n_holdout_clients
         n_train_clients = len(trainsets) - n_holdout_clients
         holdout_datasets = trainsets[n_train_clients:]
         trainsets, valsets = trainsets[:n_train_clients], valsets[:n_train_clients]

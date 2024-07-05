@@ -2,8 +2,11 @@ import random
 
 import torch
 import torchvision.transforms as T
-
 from flwr_datasets import FederatedDataset
+from datasets.utils.logging import disable_progress_bar
+
+
+disable_progress_bar()
 
 
 def train_test_split(dataset, test_percentage, seed):

@@ -1,9 +1,14 @@
+import warnings
+
 import torch
 import torch.nn as nn
 
 from src.models.models import PointNetEncoder
 from torch_geometric.nn.aggr import Set2Set
 
+
+warnings.filterwarnings('ignore')
+# UserWarning: RNN module weights are not part of single contiguous chunk of memory. This means they need to be compacted at every call, possibly greatly increasing memory usage. To compact weights again call flatten_parameters(). (Triggered internally at /opt/conda/conda-bld/pytorch_1716905969824/work/aten/src/ATen/native/cudnn/RNN.cpp:1424.)
 
 class Set2SetModel(nn.Module):
     def __init__(self, input_shape):

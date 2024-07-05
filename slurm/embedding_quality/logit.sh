@@ -5,11 +5,14 @@
 #SBATCH --cpus-per-task=32
 #SBATCH --mem-per-cpu=2G
 #SBATCH --gpus=1
-#SBATCH --out=logs/logit_all.txt
+#SBATCH --out=logs/embedding_quality_logit.txt
 
 
-source ../.venv/flower/bin/activate
-
+source ~/miniforge3/etc/profile.d/conda.sh
+conda activate flower
+export PYTHONPATH=$PYTHONPATH:.
+export HF_DATASETS_IN_MEMORY_MAX_SIZE=8589934592
+export HF_DATASETS_CACHE=/home/radovib/.cache/huggingface/data/
 
 for DATASET in mnist cifar10 cifar100; do
     if [ "$DATASET" = "cifar100" ]; then
@@ -30,14 +33,13 @@ for DATASET in mnist cifar10 cifar100; do
     fi
 
     echo "submitting..."
-    srun --ntasks=1 --cpus-per-task=32 --mem-per-cpu=2G python -u scripts/evaluate_logit_cem.py \
+    srun python -u scripts/evaluate_logit_cem.py \
         partitioning.alpha=0.2                    \
         cem.ft_epochs=1                           \
         dataset=$DATASET                          \
         partitioning.partition_by=$partition_by   \
         cem.public_dataset_name=$public_dataset   \
-        wandb.log_to_wandb=true                   \
-        wandb.loggin_keys=[partitioning.alpha,cem.ft_epochs]
+        +temp_run_id="logit_${DATASET}"
 
 done
 
