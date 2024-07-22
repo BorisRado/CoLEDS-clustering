@@ -46,7 +46,8 @@ def load_cem(cem_config, cem_folder):
                 input_shape=cem_config.dataset.input_shape,
                 n_classes=n_classes
             )
-            model.load_state_dict(torch.load(cem_folder / "fl_model.pth"))
+            if cem_folder is not None:
+                model.load_state_dict(torch.load(cem_folder / "fl_model.pth"))
             cem = EmbeddingSpaceCEM(model, cem_config["cem"]["reduction_stats"])
         # random & label
         elif cem_name in {"RandomCEM", "LabelCEM"}:
@@ -56,6 +57,7 @@ def load_cem(cem_config, cem_folder):
     else:
         # is contrastive learning model
         model = instantiate(cem_config.model, input_shape=cem_config.dataset.input_shape)
-        model.load_state_dict(torch.load(cem_folder / "cem.pth"))
+        if cem_folder is not None:
+            model.load_state_dict(torch.load(cem_folder / "cem.pth"))
         cem = SingleModelCEM(model)
     return cem

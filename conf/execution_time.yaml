@@ -1,0 +1,11 @@
+defaults:
+  - model: sup_ae
+  - optimizer: adam
+  - _self_
+dataset:
+  dataset_size: 1000
+  input_shape: [3, 32, 32]
+  n_classes: 10
+n_evaluations: 10
+general: # just for compatibility
+  seed: 10

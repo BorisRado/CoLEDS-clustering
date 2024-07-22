@@ -22,3 +22,7 @@ class SingleModelCEM(CEM):
         x = torch.vstack([b["img"].to(self.device) for b in dl])
         emb = self.model(x)
         return emb.cpu().numpy()
+
+    def __str__(self):
+        model_name = self.model.__class__.__name__
+        return f"SingleModelCEM_{model_name}"

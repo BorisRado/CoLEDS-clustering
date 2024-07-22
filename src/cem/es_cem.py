@@ -31,3 +31,7 @@ class EmbeddingSpaceCEM(CEM):
         assert x.ndim == 2 and x.shape[0] == len(dataloader.dataset)
         stats = compute_statistic(x, self.reduction_stats, 0).cpu().numpy()
         return stats
+
+    def __str__(self):
+        model_name = self.model.__class__.__name__
+        return f"EmbeddingSpaceCEM_{model_name}"

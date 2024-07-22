@@ -38,3 +38,7 @@ class LogitCEM(CEM):
             model(b) for b, _ in dataloader
         ]).numpy()
         return out.reshape(1, -1)
+
+    def __str__(self):
+        model_name = self.model.__class__.__name__
+        return f"LgC_{model_name}"

@@ -34,3 +34,7 @@ class WeightDiffCEM(CEM):
 
         wd = _flatten_model(model) - _flatten_model(self.model)
         return wd.reshape(1, -1)
+
+    def __str__(self):
+        model_name = self.model.__class__.__name__
+        return f"WDC_{model_name}"
