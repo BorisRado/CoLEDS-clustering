@@ -9,3 +9,5 @@ wandb
 *.ipynb
 *.env
 *.txt
+
+colext_config.yaml

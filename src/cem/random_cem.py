@@ -13,3 +13,6 @@ class RandomCEM(CEM):
     def get_embedding(self, dataset):
         _ = (dataset,)
         return torch.randn(1, self.dimension).numpy()
+
+    def __str__(self):
+        return "RandomCEM"

@@ -19,3 +19,6 @@ class LabelCEM(CEM):
         assert res.shape == (1, self.n_classes)
         assert res.sum() == len(dataset)
         return res
+
+    def __str__(self):
+        return "LabelCEM"
