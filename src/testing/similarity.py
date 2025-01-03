@@ -1,14 +1,9 @@
-from tqdm import tqdm
 import numpy as np
+
 from sklearn.metrics.pairwise import cosine_similarity
 
-from src.data.utils import get_dataloaders, get_label_distribution
-from src.clustering.clusterer import Clusterer
 
 np.seterr(all="raise")
-
-def _all_equal(v):
-    return (v == v[0]).all()
 
 
 def _compute_within_cluster_similarity(distributions):

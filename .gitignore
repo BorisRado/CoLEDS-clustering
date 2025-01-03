@@ -2,6 +2,9 @@ __pycache__
 dcgm
 outputs
 wandb
+old
+data/raw
+.wandb_cache
 
 *.pdf
 *.err
@@ -9,5 +12,8 @@ wandb
 *.ipynb
 *.env
 *.txt
+*.csv
+*.pth
+*.zip
 
 colext_config.yaml

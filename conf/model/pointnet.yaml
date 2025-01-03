@@ -1,3 +1,2 @@
 _target_: src.models.pointnet_model.PointNetModel
-reduction_stats: ["mean"]
 head_sizes: [64]

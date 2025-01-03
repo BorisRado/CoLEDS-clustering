@@ -9,8 +9,18 @@ general:
 train_config:
   batch_size: 32
   temperature: 0.2
-  n_iterations: 100
+  num_iterations: 50
+  num_client_updates: 1
   fraction_fit: 0.5
+experiment_folder: ...
+experiment_name: ...
 wandb:
   log_to_wandb: false
-  loggin_keys: []
+  loggin_keys:
+  - general.seed
+  - train_config.batch_size
+  - train_config.temperature
+  - dataset.dataset_name
+hydra:
+  run:
+    dir: outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}/${general.seed}_${dataset.dataset_name}_${train_config.batch_size}_${train_config.temperature}_${train_config.temperature}_${train_config.fraction_fit}_${train_config.num_client_updates}

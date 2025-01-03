@@ -1,9 +1,6 @@
-import copy
-
-import ray
-import torch
 import numpy as np
 from torch.utils.data import Dataset
+import torchvision.transforms as T
 
 from src.data.utils import (
     get_dataset_target_indices,
@@ -16,14 +13,14 @@ class _TmpDataset(Dataset):
     def __init__(self, subset, transform):
         self.subset = subset
         self.transform = transform
+        self.transform = T.Compose([
+            t for t in self.transform.transforms if not isinstance(t, T.ToTensor)
+        ])
 
     def __getitem__(self, index):
         img, label = self.subset[index]
-        batch = {
-            "img": img,
-            "label": label
-        }
-        batch["img"] = self.transform(batch["img"])
+        img = self.transform(img)
+        batch = (img, label )
         return batch
 
     def __len__(self):
@@ -65,15 +62,22 @@ def _compute_cluster_robustness(
     return count / n_iterations
 
 
-@ray.remote(num_cpus=8, num_gpus=0.2 if torch.cuda.is_available() else 0.0)
-def _tmp(clusterer, n_clusters, label_distributions, trainsets, holdout_indices, holdout_set, **kwargs):
+def get_cluster_robustness(
+    n_clusters,
+    clusterer,
+    label_distributions,
+    trainsets,
+    holdout_indices,
+    holdout_set,
+    **kwargs
+):
     client_clusters = clusterer.init_kmeans_model(n_clusters=n_clusters)
 
     out = []
     print(f"Robustness for {n_clusters}")
     for cluster_idx in range(n_clusters):
         cluster_data = [
-            (label_distributions[idx], trainsets[idx].dataset.applied_data_transforms)
+            (label_distributions[idx], trainsets[idx].applied_data_transforms)
             for idx, c in enumerate(client_clusters) if c == cluster_idx
         ]
         cluster_robustness = _compute_cluster_robustness(
@@ -106,11 +110,15 @@ def test_robustness(trainsets, holdout_set, clusterer, n_classes, max_clusters=3
 
     holdout_indices = get_dataset_target_indices(holdout_set)
 
-    if not ray.is_initialized():
-        ray.init()
-    futures = [
-        _tmp.remote(copy.deepcopy(clusterer), n_clusters, label_distributions, trainsets, holdout_indices, holdout_set, **kwargs)
-        for n_clusters in range(1, max_clusters)
-    ]
-    results = ray.get(futures)
+
+    results = [get_cluster_robustness(
+        idx,
+        clusterer=clusterer,
+        label_distributions=label_distributions,
+        trainsets=trainsets,
+        holdout_indices=holdout_indices,
+        holdout_set=holdout_set,
+        **kwargs
+    ) for idx in range(1, max_clusters)]
+
     return _flatten(results)

@@ -1,10 +1,9 @@
 import os
-from pathlib import Path
+import json
 
 import pandas as pd
 import wandb
 from hydra.core.config_store import OmegaConf
-from dotenv import load_dotenv
 
 
 def flatten_dict(d, parent_key='', sep='.'):
@@ -27,8 +26,6 @@ def get_value(config, key):
 
 
 def init_wandb(cfg):
-    load_dotenv(override=True)
-    print("IN MEMORY: ", os.getenv("HF_DATASETS_IN_MEMORY_MAX_SIZE"))
     config = OmegaConf.to_container(cfg)
 
     try:
@@ -44,18 +41,10 @@ def init_wandb(cfg):
     flat_config = flatten_dict(config)
 
     if cfg.wandb.log_to_wandb:
-        run = wandb.init(
+        wandb.init(
             config=flat_config,
             name=exp_name
         )
-        run_id = run.id
-    else:
-        run_id = str(cfg.temp_run_id)
-    exp_path = Path("data/raw") / run_id
-    exp_path.mkdir(parents=True, exist_ok=False)
-    OmegaConf.save(cfg, exp_path / "config.yaml")
-
-    return exp_path
 
 
 def log_table(d, experiment_folder, table_name, **kwargs):
@@ -70,3 +59,24 @@ def log_table(d, experiment_folder, table_name, **kwargs):
 def finish_wandb():
     if wandb.run is not None:
         wandb.finish()
+
+
+def run_exists_already(config):
+    if not config.wandb.log_to_wandb:
+        return False
+
+    new_conf = flatten_dict(OmegaConf.to_container(config))
+    del new_conf["experiment_folder"]
+
+    # bug in wandb: https://github.com/wandb/wandb/issues/7666
+    # another one https://github.com/wandb/wandb/issues/3087
+    existing_configs = []
+    for filename in os.listdir(".wandb_cache"):
+        with open(f".wandb_cache/{filename}", "r") as fp:
+            existing_configs.append(json.load(fp))
+
+    for conf in existing_configs:
+        del conf["experiment_folder"]
+        del conf["cem_name"]
+
+    return any(new_conf == conf for conf in existing_configs)

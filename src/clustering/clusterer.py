@@ -1,25 +1,7 @@
-import copy
-
-import ray
 import numpy as np
 import torch
 from sklearn import preprocessing
 from sklearn.cluster import KMeans
-
-
-def _get_embedding(cem, dataset):
-    with torch.no_grad():
-        emb = cem.get_embedding(dataset)
-    return preprocessing.normalize(emb)
-
-
-@ray.remote(num_cpus=4, num_gpus=0.25 if torch.cuda.is_available() else 0.0)
-class ModelActor:
-    def __init__(self, cem):
-        self.cem = cem
-
-    def get_embedding(self, dataset):
-        return _get_embedding(self.cem, dataset)
 
 
 class Clusterer:
@@ -27,25 +9,25 @@ class Clusterer:
     def __init__(self, cem, datasets_dict):
         super().__init__()
         self.cem = cem
-        self.init_embeddings = {}
-
-        if not ray.is_initialized():
-            ray.init()
-        num_actors=4
-        actors = [ModelActor.remote(copy.deepcopy(cem)) for _ in range(num_actors)]
-        for key, datasets in datasets_dict.items():
-            futures = [actors[i % num_actors].get_embedding.remote(ds)
-                       for i, ds in enumerate(datasets)]
-            self.init_embeddings[key] = np.vstack(ray.get(futures))
-            print(f"Initial embeddings shape [{key}]: {self.init_embeddings[key].shape}")
+        self.init_embeddings = {
+            key: np.vstack([self.get_embedding(ds) for ds in datasets])
+            for key, datasets in datasets_dict.items()
+        }
 
     def get_embedding(self, dataset):
-        return _get_embedding(self.cem, dataset)
+        with torch.no_grad():
+            emb = self.cem.get_embedding(dataset)
+        return preprocessing.normalize(emb)
 
     def init_kmeans_model(self, n_clusters, partition="train"):
-
         self.kmeans = KMeans(n_clusters=n_clusters, random_state=10)
-        preds = self.kmeans.fit_predict(self.init_embeddings[partition])
+        try:
+            preds = self.kmeans.fit_predict(self.init_embeddings[partition])
+        except Exception as e:
+            print("Error in KMeans fit_predict", e)
+            print("Trying to convert embeddings to double precision")
+            preds = self.kmeans.fit_predict(self.init_embeddings[partition].astype(np.float64))
+            print("Success with double precision")
         return preds
 
     def predict_client_cluster(self, client_dataset):

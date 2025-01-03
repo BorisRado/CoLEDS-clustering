@@ -11,7 +11,6 @@ class SimpleClfNet(nn.Sequential):
     def __init__(self, input_shape, n_classes) -> None:
         _check_input_shape(input_shape)
         fc_dim = input_shape[1] // 4 - 3
-        print(input_shape)
         super().__init__(
             nn.Conv2d(input_shape[0], 32, 5),
             nn.ReLU(),

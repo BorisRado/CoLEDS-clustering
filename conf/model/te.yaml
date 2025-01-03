@@ -1,5 +1,6 @@
 _target_: src.models.transformer_encoder_model.TransformerEncoderModel
 n_layers: 2
-dim_feedforward: 32
+dim_feedforward: 48
+token_dim: 64
 activation: gelu
-nhead: 8
+nhead: 4

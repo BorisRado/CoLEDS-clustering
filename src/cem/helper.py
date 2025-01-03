@@ -4,7 +4,6 @@ from hydra.core.config_store import OmegaConf
 
 from src.utils.stochasticity import TempRng
 from src.cem.single_model_cem import SingleModelCEM
-from src.cem.es_cem import EmbeddingSpaceCEM
 
 
 def load_cem(cem_config, cem_folder):
@@ -39,16 +38,6 @@ def load_cem(cem_config, cem_folder):
                 optim_kwargs=OmegaConf.to_container(cem_config.optimizer),
             )
 
-        # embedding space
-        elif cem_name == "EmbeddingSpaceCEM":
-            model = instantiate(
-                cem_config["model"],
-                input_shape=cem_config.dataset.input_shape,
-                n_classes=n_classes
-            )
-            if cem_folder is not None:
-                model.load_state_dict(torch.load(cem_folder / "fl_model.pth"))
-            cem = EmbeddingSpaceCEM(model, cem_config["cem"]["reduction_stats"])
         # random & label
         elif cem_name in {"RandomCEM", "LabelCEM"}:
             cem = instantiate(cem_config["cem"], n_classes=n_classes)

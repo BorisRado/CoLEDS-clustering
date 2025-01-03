@@ -13,14 +13,15 @@ class SingleModelCEM(CEM):
     def __init__(self, model):
         self.model = model
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model.to(self.device)
         self.model.eval()
+        self.model.to(self.device)
 
     @check_dtype
     def get_embedding(self, dataset):
         dl = self.get_dataloader(dataset)
-        x = torch.vstack([b["img"].to(self.device) for b in dl])
-        emb = self.model(x)
+        x = torch.vstack([b[0] for b in dl]).to(self.device)
+        with torch.no_grad():
+            emb = self.model(x)
         return emb.cpu().numpy()
 
     def __str__(self):

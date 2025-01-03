@@ -104,7 +104,11 @@ def generate_dataset(dataset_size, p, dictionary=True):
         return dataset
     else:
         labels = torch.tensor(labels)
-        return TensorDataset(images, labels)
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        return TensorDataset(
+            images.to(device, non_blocking=True),
+            labels.to(device, non_blocking=True)
+        )
 
 def generate_synthetic_datasets(n_datasets, dataset_size, p=0.8):
     datasets = []

@@ -1,5 +1,6 @@
 import random
 
+from hydra.utils import instantiate
 import torch
 import torchvision.transforms as T
 from flwr_datasets import FederatedDataset
@@ -45,10 +46,14 @@ def partition_dataset(dataset, partitioner, test_percentage, transforms_generato
             break
         transforms = next(transforms_generator)
         dataset = _apply_client_transforms(dataset, transforms)
-        dataset.applied_data_transforms = transforms
 
-        tpl = train_test_split(dataset, test_percentage, seed)
-        datasets.append(tpl)
+        # tpl = train_test_split(dataset, test_percentage, seed)
+        tpl = dataset.train_test_split(test_size=test_percentage, seed=seed)
+        trainset = tpl["train"]
+        testset = tpl["test"]
+        trainset.applied_data_transforms = transforms
+        testset.applied_data_transforms = transforms
+        datasets.append((trainset, testset))
         idx += 1
     a, b = 0, 0
     for tr, vl in datasets:
@@ -70,27 +75,7 @@ def _get_random_float(min_=0., max_=1.):
     return random.uniform(min_, max_)
 
 
-def get_transform_iterator(n_transforms, horizontal_flipping):
-    # Define the list of transformations
-    transformations = [
-        lambda: T.RandomVerticalFlip(p=_get_random_float(0.5, 1.0)),
-        lambda: T.ColorJitter(brightness=_get_random_float(), contrast=_get_random_float(), saturation=_get_random_float(), hue=_get_random_float(0., 0.5)),
-        lambda: T.RandomRotation(degrees=_get_random_float(0, 90), fill=_get_random_float()),
-        lambda: T.ElasticTransform(alpha=_get_random_float(0, 150)),
-        lambda: T.GaussianBlur(kernel_size=3, sigma=_get_random_float(0.2, 1.0)),
-        lambda: T.RandomInvert(p=_get_random_float()),
-        lambda: T.RandomSolarize(_get_random_float(), p=_get_random_float())
-    ]
-
-    # random_transform = T.RandomChoice(transformations, )
-
-    if not horizontal_flipping:
-        while True:
-            yield T.ToTensor()
+def get_transform_iterator(n_transforms, config):
 
     while True:
-        yield T.Compose(
-            [T.ToTensor()] +
-            [fn() for fn in random.sample(transformations, n_transforms)] +
-            [T.RandomHorizontalFlip()]
-        )
+        yield instantiate(config.transforms)
