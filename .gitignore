@@ -16,5 +16,6 @@ slurm/history
 *.csv
 *.pth
 *.zip
+*.json
 
 colext_config.yaml

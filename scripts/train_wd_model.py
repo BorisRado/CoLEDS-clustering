@@ -19,11 +19,6 @@ def run(cfg):
     print(OmegaConf.to_yaml(cfg))
     experiment_folder = init_wandb(cfg)
 
-    if "dry_run" in cfg and cfg.dry_run is True:
-        print("DRY_RUN....")
-        finish_wandb()
-        return
-
     set_seed(cfg.general.seed)
     trainsets, valsets = get_datasets_from_cfg(cfg)
 

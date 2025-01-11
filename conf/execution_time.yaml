@@ -1,5 +1,5 @@
 defaults:
-  - model: sup_ae
+  - model: clmean
   - optimizer: adam
   - _self_
 dataset:

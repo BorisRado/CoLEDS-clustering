@@ -98,13 +98,11 @@ def train_ce(model, dataloader, proximal_mu=-1, optimizer=None, **kwargs):
         optimizer = init_optimizer(model.parameters(), **kwargs)
 
     criterion = nn.CrossEntropyLoss()
-    for batch in dataloader:
-        batch = {k: v.to(device) for k, v in batch.items() if k in {"label", "img"}}
+    for img, labels in dataloader:
+        img, labels = img.to(device), labels.to(device)
 
-        preds = model(batch["img"])
-        # print(preds)
-        # print(batch["label"])
-        loss = criterion(preds, batch["label"])
+        preds = model(img)
+        loss = criterion(preds, labels)
 
         if proximal_mu > 0:
             proximal_loss = 0.0

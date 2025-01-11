@@ -5,20 +5,19 @@ from pathlib import Path
 
 import hydra
 import torch
-from datasets import Dataset
 from hydra.core.config_store import OmegaConf
 from tqdm import tqdm
 
 from src.cem.helper import load_cem
+from src.utils.other import get_exp_folder, set_torch_flags
 
 
 def _get_random_dataset(cfg):
     # generate random radaset
-    dataset = Dataset.from_dict({
-        "img": torch.randn(cfg.dataset.dataset_size+1, *cfg.dataset.input_shape),
-        "label": torch.zeros(cfg.dataset.dataset_size+1,).long()
-    })
-    dataset.set_format("torch")
+    dataset = torch.utils.data.TensorDataset(
+        torch.randn(cfg.dataset.dataset_size+1, *cfg.dataset.input_shape),
+        torch.zeros(cfg.dataset.dataset_size+1,).long()
+    )
     dataset = torch.utils.data.random_split(
         dataset,
         [cfg.dataset.dataset_size, 1]
@@ -31,19 +30,22 @@ def run(cfg):
 
     print(OmegaConf.to_yaml(cfg))
 
-    run_id = str(cfg.temp_run_id)
-    exp_folder = Path("data/raw") / run_id
-    exp_folder.mkdir(parents=True, exist_ok=True)
+    set_torch_flags()
+    if "folder" in cfg:
+        experiment_folder = Path(cfg.folder)
+        experiment_folder.mkdir(parents=True, exist_ok=True)
+    else:
+        experiment_folder = get_exp_folder()
 
     cem = load_cem(cfg, cem_folder=None)
     ds_size = str(cfg.dataset.dataset_size)
-    exp_json_filepath = exp_folder / f"{str(cem)}_{ds_size}.json"
+    exp_json_filepath = experiment_folder / f"{str(cem)}_{ds_size}.json"
     assert not os.path.exists(exp_json_filepath)
 
     print("CEM NAME", str(cem))
 
     computation_times = []
-    for _ in tqdm(range(cfg.n_evaluations)):
+    for idx in tqdm(range(cfg.n_evaluations + 1)):
 
         dataset = _get_random_dataset(cfg)
 
@@ -51,9 +53,13 @@ def run(cfg):
         with torch.no_grad():
             _ = cem.get_embedding(dataset)
         end_time = time.time()
+        if idx == 0:
+            # do not use the time in the first iteration, may include
+            # some initialization overhead that we do not want to measure
+            continue
         computation_times.append(end_time - start_time)
 
-        time.sleep(1)  # to cool down a bit
+        time.sleep(2)  # to cool down a bit
 
     data = {
         "GPU": torch.cuda.is_available(),
