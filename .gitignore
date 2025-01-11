@@ -4,6 +4,7 @@ outputs
 wandb
 old
 data/raw
+slurm/history
 .wandb_cache
 
 *.pdf

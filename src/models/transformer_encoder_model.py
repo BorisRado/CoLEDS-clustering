@@ -16,7 +16,7 @@ class TransformerEncoderModel(nn.Module):
         self.aggregator_model.layers[-1].self_attn
 
     def _get_head(self, input_shape, n_layers, **kwargs):
-        cls_token = nn.Parameter(torch.zeros(size=(1, 1, self.token_dim)))
+        cls_token = nn.Parameter(torch.zeros(size=(1, 1, self.token_dim)), requires_grad=True)
         encoder_block = nn.TransformerEncoderLayer(d_model=self.token_dim, batch_first=True, **kwargs)
         encoder = nn.TransformerEncoder(encoder_layer=encoder_block, num_layers=n_layers)
         return encoder, cls_token

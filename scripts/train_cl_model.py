@@ -27,9 +27,9 @@ the similarity of dataset embeddings and the similarity of the dataset labels ch
 @hydra.main(version_base=None, config_path="../conf", config_name="cl")
 def run(cfg):
 
-    # if run_exists_already(cfg):
-    #     print("Run exists already. Returning...")
-    #     return
+    if run_exists_already(cfg):
+        print("Run exists already. Returning...")
+        return
     print(OmegaConf.to_yaml(cfg))
     init_wandb(cfg)
     set_torch_flags()
