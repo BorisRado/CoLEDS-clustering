@@ -12,15 +12,15 @@ from src.cem.helper import load_cem
 from src.utils.other import get_exp_folder, set_torch_flags
 
 
-def _get_random_dataset(cfg):
+def _get_random_dataset(dataset_size, input_shape):
     # generate random radaset
     dataset = torch.utils.data.TensorDataset(
-        torch.randn(cfg.dataset.dataset_size+1, *cfg.dataset.input_shape),
-        torch.zeros(cfg.dataset.dataset_size+1,).long()
+        torch.randn(dataset_size+1, *input_shape),
+        torch.zeros(dataset_size+1,).long()
     )
     dataset = torch.utils.data.random_split(
         dataset,
-        [cfg.dataset.dataset_size, 1]
+        [dataset_size, 1]
     )[0]
     return dataset
 
@@ -37,7 +37,14 @@ def run(cfg):
     else:
         experiment_folder = get_exp_folder()
 
-    cem = load_cem(cfg, cem_folder=None)
+    cem_kwargs = {}
+    if "Logit" in cfg["cem"]["_target_"].split(".")[-1]:
+        cem_kwargs["public_dataset"] = _get_random_dataset(
+            cfg.cem.public_dataset_size,
+            cfg.dataset.input_shape
+        )
+
+    cem = load_cem(cfg, cem_folder=None, **cem_kwargs)
     ds_size = str(cfg.dataset.dataset_size)
     exp_json_filepath = experiment_folder / f"{str(cem)}_{ds_size}.json"
     assert not os.path.exists(exp_json_filepath)
@@ -47,7 +54,7 @@ def run(cfg):
     computation_times = []
     for idx in tqdm(range(cfg.n_evaluations + 1)):
 
-        dataset = _get_random_dataset(cfg)
+        dataset = _get_random_dataset(cfg.dataset.dataset_size, cfg.dataset.input_shape)
 
         start_time = time.time()
         with torch.no_grad():

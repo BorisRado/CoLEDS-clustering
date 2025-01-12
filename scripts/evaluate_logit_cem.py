@@ -3,26 +3,27 @@ from hydra.utils import instantiate
 
 from hydra.core.config_store import OmegaConf
 
-from src.data.utils import get_datasets_from_cfg
+from src.data.utils import get_datasets_from_cfg, to_pytorch_tensor_dataset
 from src.flower.train import train_flower
 from src.utils.evaluation import get_evaluation_fn
 from src.utils.stochasticity import TempRng
 from src.utils.wandb import init_wandb, finish_wandb
 from src.models.training_procedures import train_ce
+from src.utils.other import get_exp_folder, set_torch_flags
 
 
 @hydra.main(version_base=None, config_path="../conf", config_name="logit")
 def run(cfg):
     print(OmegaConf.to_yaml(cfg))
-    experiment_folder = init_wandb(cfg)
-
-    if "dry_run" in cfg and cfg.dry_run is True:
-        print("DRY_RUN....")
-        finish_wandb()
-        return
+    init_wandb(cfg)
+    experiment_folder = get_exp_folder()
+    set_torch_flags()
 
     with TempRng(cfg.general.seed):
         trainsets, valsets = get_datasets_from_cfg(cfg)
+
+    trainsets = to_pytorch_tensor_dataset(trainsets)
+    valsets = to_pytorch_tensor_dataset(valsets)
 
     with TempRng(cfg.general.seed):
         model = instantiate(

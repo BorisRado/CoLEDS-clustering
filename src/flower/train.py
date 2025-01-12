@@ -1,20 +1,15 @@
 from copy import deepcopy
-from functools import partial
 
 import ray
-import numpy as np
 import torch
 from flwr.simulation import start_simulation
 from flwr.server.strategy import FedAvg
 from flwr.server import ServerConfig
-from flwr.server.strategy.aggregate import aggregate
 
 from src.flower.client import FlowerClient
 from src.flower.strategy import get_strategy_with_chechpoint
 from src.utils.stochasticity import set_seed
-from src.utils.parameters import get_parameters, set_parameters
-from src.models.helper import init_optimizer
-from src.models.evaluation_procedures import test as test_accuracy
+
 
 
 def weighted_average(metrics):
@@ -88,7 +83,7 @@ def train_flower(
 
     cr = {"num_cpus": 8}
     if torch.cuda.is_available():
-        cr["num_gpus"] = .25
+        cr["num_gpus"] = 1.0
 
     set_seed(seed)
     start_simulation(
@@ -100,5 +95,5 @@ def train_flower(
         keep_initialised=True
     )
     # history.losses_distributed
-    model.load_state_dict(torch.load(file))
+    model.load_state_dict(torch.load(file, weights_only=True))
     return model

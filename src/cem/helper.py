@@ -6,7 +6,7 @@ from src.utils.stochasticity import TempRng
 from src.cem.single_model_cem import SingleModelCEM
 
 
-def load_cem(cem_config, cem_folder):
+def load_cem(cem_config, cem_folder, **kwargs):
     n_classes = cem_config.dataset.n_classes
 
     if "cem" in cem_config:
@@ -36,6 +36,7 @@ def load_cem(cem_config, cem_folder):
                 cem_config.cem,
                 init_model=model,
                 optim_kwargs=OmegaConf.to_container(cem_config.optimizer),
+                **kwargs,
             )
 
         # random & label
