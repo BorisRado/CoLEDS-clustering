@@ -1,6 +1,6 @@
 defaults:
   - partitioning: dirichlet
-  - model: pointnet
+  - model: clmean
   - dataset: cifar10
   - optimizer: adam
   - _self_
