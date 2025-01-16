@@ -38,9 +38,12 @@ class LogitCEM(CEM):
                 torch.Generator().manual_seed(42)
             )
         dataloader = self.get_dataloader(ho_dataset, shuffle=False)
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model.to(device)
+        model.eval()
         out = torch.vstack([
-            model(b) for b, _ in dataloader
-        ]).numpy()
+            model(b.to(device)) for b, _ in dataloader
+        ]).cpu().numpy()
         return out.reshape(1, -1)
 
     def __str__(self):

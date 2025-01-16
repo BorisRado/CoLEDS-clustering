@@ -1,7 +1,10 @@
 #!/bin/bash
 
+source ~/.venv/flower/bin/activate
+colext_launch_job -p
+
 # start the pods on all the devices
-for device in jao1 jn1 jon1 jxn1; do
+for device in jao1 jn3 jon1 jxn1; do
     sed "s/HOSTNAME/$device/g" pod_config.yaml | sed "s/BASEIMAGE/jetson/g" - | mk apply -f -
 done
 
@@ -39,7 +42,8 @@ copy_data_from_running_pods() {
     if [[ "$phase" == "Running" ]]; then
       local_dir="/home/radovib/fl_clustering/data/raw/$pod_name"
       mkdir -p "$local_dir"
-      mk cp "$pod_name:data/raw/tmp_times/" "$local_dir"  # Copy the folder from the pod to the local directory
+      mk cp "$pod_name:results/" "$local_dir"  # Copy the folder from the pod to the local directory
+      echo "Copying..."
 
     fi
   done
@@ -47,7 +51,7 @@ copy_data_from_running_pods() {
   echo ""
 }
 
-# start a loop that every 20 minutes copies the folders to local file system
+# start a loop that every 2 minutes copies the folders to local file system
 while ! all_pods_completed; do
     echo "Iterating..."
     copy_data_from_running_pods
