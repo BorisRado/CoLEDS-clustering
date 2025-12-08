@@ -1,3 +1,4 @@
+import time
 from functools import reduce
 
 import numpy as np
@@ -23,6 +24,7 @@ class Strategy(PlainSlStrategy):
 
     def initialize_parameters(self, client_manager):
         _ = (client_manager,)
+        client_manager.wait_for(self.min_available_clients)
         return ndarrays_to_parameters(get_parameters(self.model))
 
     def configure_evaluate(self, server_round, parameters, client_manager):
@@ -34,7 +36,7 @@ class Strategy(PlainSlStrategy):
         assert len(results) == 1
         result = results[0]
         round_loss = result.config["loss"]
-        self.losses.append(round_loss)
+        self.losses.append((server_round, time.time(), round_loss))
         return []
 
     def aggregate_fit(self, server_round, results, failures):

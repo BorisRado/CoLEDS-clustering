@@ -1,3 +1,4 @@
+import os
 import logging
 logging.basicConfig(level=logging.ERROR)
 
@@ -7,6 +8,7 @@ from hydra.utils import instantiate
 from flwr.server import ServerConfig
 from slwr.server.app import start_server
 
+from src.utils.colext import EnvironmentVariables as EV
 from src.utils.stochasticity import TempRng, set_seed
 from src.slower.strategy import Strategy
 from src.slower.server_model import ServerModel
@@ -14,13 +16,20 @@ from src.slower.server_model import ServerModel
 
 @hydra.main(version_base=None, config_path="../../conf", config_name="cl")
 def run(cfg):
+    print(OmegaConf.to_yaml(cfg))
     server_model_fn = lambda: ServerModel(cfg.train_config.temperature)
     num_clients = cfg.partitioning.num_partitions
 
     with TempRng(cfg.general.seed):
         model = instantiate(cfg.model, input_shape=cfg.dataset.input_shape)
 
-    num_clients = cfg.num_clients
+
+    if "num_clients" in cfg:
+        num_clients = cfg.num_clients
+    else:
+        num_clients = int(os.environ[EV.N_CLIENTS])
+
+    print(f"Number of clients: {num_clients}")
     strategy = Strategy(
         model=model,
         optim_kwargs=OmegaConf.to_container(cfg.optimizer),
@@ -29,7 +38,7 @@ def run(cfg):
         fraction_evaluate=0.,
         init_server_model_fn=server_model_fn,
         min_available_clients=num_clients,
-        min_fit_clients=num_clients,
+        min_fit_clients=2,
         min_evaluate_clients=num_clients,
         common_server_model=True,
         process_clients_as_batch=True,
@@ -37,7 +46,7 @@ def run(cfg):
 
     set_seed(cfg.general.seed)
     history = start_server(
-        server_address="0.0.0.0:50051",
+        server_address="0.0.0.0:8080",
         strategy=strategy,
         config=ServerConfig(num_rounds=cfg.num_rounds),
     )

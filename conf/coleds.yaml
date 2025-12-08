@@ -6,14 +6,19 @@ defaults:
   - _self_
 general:
   seed: 10
+  max_epochs: 30 # maximum number of times we check for correlation
+  patience: 5 # for early exit
 train_config:
   batch_size: 32
   temperature: 0.2
-  num_iterations: 50
+  num_iterations: 50 # determines how often we check the correlation
   num_client_updates: 1
   fraction_fit: 0.5
-experiment_folder: ...
-experiment_name: ...
+  optimized_computation: true # whether we fully simuilate the SL process or run an equivalent but faster computation. The result should be the same
+experiment:
+  folder: ...
+  name: ...
+  save_model: false # need to explicitly specify that we should persist the model to the disk
 wandb:
   log_to_wandb: false
   loggin_keys:

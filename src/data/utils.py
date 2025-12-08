@@ -1,3 +1,4 @@
+import time
 from pathlib import Path
 
 import numpy as np
@@ -14,15 +15,22 @@ from src.data.synthetic_dataset import generate_synthetic_datasets
 import torch.multiprocessing as mp
 
 
-def get_dataloaders_with_replacement(datasets, batch_size):
+def get_dataloaders_with_replacement(datasets, batch_size, runtime_horizontal_flipping):
+
+    def collate_fn(batch):
+        # batch = [(img, label), (img, label), ...]
+        imgs, labels = zip(*batch)
+        imgs = torch.stack(imgs)
+        labels = torch.tensor(labels, device=imgs.device)
+        mask = torch.rand(len(imgs), device=imgs.device) < 0.5
+        imgs[mask] = torch.flip(imgs[mask], dims=[-1])
+        return imgs, labels
+
     dataloaders = []
     for dataset in datasets:
-        if len(dataset) > batch_size * 1.5:
-            bs = batch_size
-        else:
-            bs = int(len(dataset) * 2 / 3)
-        sampler = RandomSampler(dataset, replacement=True, num_samples=2*bs)
-        dataloader = DataLoader(dataset, sampler=sampler, batch_size=bs)
+        sampler = RandomSampler(dataset, replacement=True, num_samples=2*batch_size)
+        kwargs = {"collate_fn": collate_fn} if runtime_horizontal_flipping else {}
+        dataloader = DataLoader(dataset, sampler=sampler, batch_size=batch_size, **kwargs)
         dataloaders.append(dataloader)
     return dataloaders
 
@@ -138,31 +146,101 @@ def sample_subset_given_distribution(dataset, indices, target_distribution):
     return subset
 
 
-def _process_dataset(ds):
-    dl = DataLoader(ds, batch_size=8)
-    imgs, labels = [], []
-    for b in dl:
-        imgs.append(b["img"])
-        labels.append(b["label"])
-    transforms = ds.applied_data_transforms
-    dataset_name = ds.info.dataset_name
-    ds = TensorDataset(
-        torch.vstack(imgs),
-        torch.hstack(labels),
+def _process_dataset(ds, n_classes):
+
+    dl = DataLoader(
+        ds, batch_size=256, drop_last=False,
+        pin_memory=torch.cuda.is_available(), shuffle=False,
     )
-    return ds, transforms, dataset_name
 
-def to_pytorch_tensor_dataset(datasets):
-    out_datasets = []
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # Determine device and dataset size
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    dataset_size = len(ds)
 
-    torch.multiprocessing.set_sharing_strategy("file_system")
-    with mp.Pool(mp.cpu_count()) as pool:
-        out_datasets = pool.map(_process_dataset, datasets)
+    # Get first batch to determine tensor shapes
+    img_shape = next(iter(dl))["img"].shape[1:]  # Remove batch dimension
+
+    # Pre-allocate tensors on GPU if available
+    imgs = torch.empty((dataset_size, *img_shape), device=device)
+    labels = torch.empty(dataset_size, dtype=torch.long, device=device)
+
+    # Fill tensors with data
+    idx = 0
+    label_distribution = np.zeros((n_classes,))
+    for b in dl:
+        batch_size = b["img"].shape[0]
+        imgs[idx:idx+batch_size] = b["img"].to(device, non_blocking=True)
+        labels[idx:idx+batch_size] = b["label"].to(device, non_blocking=True)
+        for l in labels[idx:idx+batch_size]:
+            label_distribution[l] += 1
+
+        idx += batch_size
+
+    tensor_ds = TensorDataset(imgs, labels)
+    tensor_ds.applied_data_transform = ds.applied_data_transforms
+    tensor_ds.dataset_name = ds.info.dataset_name
+    tensor_ds._label_distribution = label_distribution
+    return tensor_ds
+
+def to_pytorch_tensor_dataset(datasets, n_classes):
+    # cuda_datasets_seq = [_process_dataset(ds, n_classes) for ds in datasets]
+
+    # Process on CPU in parallel
+    start_time = time.time()
+    with mp.Pool(processes=8) as pool:
+        results = pool.starmap(_process_dataset_cpu, [(ds, n_classes) for ds in datasets])
+
+    # Move to GPU in main process
     cuda_datasets = []
-    for ds, name, trans in out_datasets:
-        cuda_ds = TensorDataset(*tuple(t.to(device, non_blocking=True) for t in ds.tensors))
-        cuda_ds.dataset_name = name
-        cuda_ds.applied_data_transform = trans
-        cuda_datasets.append(cuda_ds)
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+    for imgs, labels, label_dist, transforms, dataset_name in results:
+        imgs = imgs.to(device, non_blocking=True)
+        labels = labels.to(device, non_blocking=True)
+
+        tensor_ds = TensorDataset(imgs, labels)
+        tensor_ds.applied_data_transform = transforms
+        tensor_ds.dataset_name = dataset_name
+        tensor_ds._label_distribution = label_dist
+        cuda_datasets.append(tensor_ds)
+
+    print(f"Loading time on GPU: {time.time() - start_time:.2f}")
+    # for ds1, ds2 in zip(cuda_datasets, cuda_datasets_seq):
+    #     assert len(ds1) == len(ds2)
+    #     for dp1, dp2 in zip(ds1, ds2):
+    #         assert (dp1[0] == dp2[0]).all()
+    #         assert (dp1[1] == dp2[1]).all()
     return cuda_datasets
+
+
+class ToRgb(torch.nn.Module):
+    def forward(self, img):
+        if img.mode != "RGB":
+            img = img.convert("RGB")
+        return img
+
+
+def _process_dataset_cpu(ds, n_classes):
+    """Process dataset on CPU, return raw tensors"""
+    dl = DataLoader(
+        ds, batch_size=min(128, len(ds)), drop_last=False,
+        pin_memory=False, shuffle=False,  # Don't pin memory in subprocess
+    )
+
+    dataset_size = len(ds)
+    img_shape = next(iter(dl))["img"].shape[1:]
+
+    imgs = torch.empty((dataset_size, *img_shape))
+    labels = torch.empty(dataset_size, dtype=torch.long)
+
+    idx = 0
+    label_distribution = np.zeros((n_classes,))
+    for b in dl:
+        batch_size = b["img"].shape[0]
+        imgs[idx:idx+batch_size] = b["img"]
+        labels[idx:idx+batch_size] = b["label"]
+        for l in labels[idx:idx+batch_size]:
+            label_distribution[l] += 1
+        idx += batch_size
+
+    return imgs, labels, label_distribution, ds.applied_data_transforms, ds.info.dataset_name

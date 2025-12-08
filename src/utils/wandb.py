@@ -1,5 +1,8 @@
 import os
 import json
+import hashlib
+import fcntl
+from functools import wraps
 
 import pandas as pd
 import wandb
@@ -61,22 +64,59 @@ def finish_wandb():
         wandb.finish()
 
 
-def run_exists_already(config):
+def lock_folder(folder_path):
+    """Decorator that locks a folder before function execution and releases it after."""
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            # Create folder if it doesn't exist
+            os.makedirs(folder_path, exist_ok=True)
+
+            lock_file_path = os.path.join(folder_path, ".lock")
+
+            # Use file locking to ensure only one process accesses the folder at a time
+            with open(lock_file_path, "w") as lock_file:
+                try:
+                    # Acquire exclusive lock
+                    fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+
+                    # Call the original function with folder parameter
+                    return func(*args, folder=folder_path, **kwargs)
+
+                finally:
+                    # Lock is automatically released when file is closed
+                    pass
+        return wrapper
+    return decorator
+
+
+@lock_folder(".tmp_cache")
+def run_exists_already(config, folder):
     if not config.wandb.log_to_wandb:
         return False
 
     new_conf = flatten_dict(OmegaConf.to_container(config))
-    del new_conf["experiment_folder"]
+    del new_conf["experiment.folder"]
 
-    # bug in wandb: https://github.com/wandb/wandb/issues/7666
-    # another one https://github.com/wandb/wandb/issues/3087
-    existing_configs = []
-    for filename in os.listdir(".wandb_cache"):
-        with open(f".wandb_cache/{filename}", "r") as fp:
-            existing_configs.append(json.load(fp))
+    # Check if configuration already exists
+    for filename in os.listdir(folder):
+        if filename == ".lock":  # Skip lock file
+            continue
+        filepath = os.path.join(folder, filename)
+        if os.path.isfile(filepath):
+            with open(filepath, "r") as fp:
+                existing_config = json.load(fp)
+            if existing_config == new_conf:
+                return True
 
-    for conf in existing_configs:
-        del conf["experiment_folder"]
-        del conf["cem_name"]
+    # save the dictionary with a unique filename based on config hash
+    config_str = json.dumps(new_conf, sort_keys=True)
+    config_hash = hashlib.md5(config_str.encode()).hexdigest()
+    filename = os.path.join(folder, f"config_{config_hash}.json")
 
-    return any(new_conf == conf for conf in existing_configs)
+    # Double-check that file doesn't exist (in case another process created it)
+    assert not os.path.exists(filename)
+    with open(filename, "w") as fp:
+        json.dump(new_conf, fp, indent=2)
+
+    return False

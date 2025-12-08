@@ -1,1 +1,3 @@
 _target_: src.models.set2set_model.Set2SetModel
+processing_steps: 4
+hidden_dim: 48

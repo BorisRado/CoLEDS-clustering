@@ -5,17 +5,15 @@ def test(model, testloader):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
+    model.eval()
 
     forward_fn = lambda x: model["clf_head"](model["encoder"](x)) \
         if isinstance(model, torch.nn.ModuleDict) else model(x)
     correct = 0
     with torch.no_grad():
-        for batch in testloader:
-            if "label" not in batch:
-                correct = -1.
-                break
-            images = batch["img"].to(device)
-            labels = batch["label"].to(device)
+        for img, label in testloader:
+            images = img.to(device)
+            labels = label.to(device)
             outputs = forward_fn(images)
             correct += (torch.max(outputs.data, 1)[1] == labels).sum().item()
     accuracy = correct / len(testloader.dataset)
@@ -27,6 +25,7 @@ def test_ae(model, testloader):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
+    model.eval()
 
     if not isinstance(model, torch.nn.ModuleDict):
         return -1
@@ -34,8 +33,8 @@ def test_ae(model, testloader):
 
     loss = 0.
     with torch.no_grad():
-        for batch in testloader:
-            images = batch["img"].to(device)
+        for img, _ in testloader:
+            images = img.to(device)
 
             outputs = model["recon_head"](model["encoder"](images))
             loss += criterion(outputs, images)

@@ -1,8 +1,10 @@
 import torch.optim as optim
 
+
 def init_optimizer(model_parameters, optimizer_name="adam", **kwargs):
     optimizer = {
         "adam": optim.Adam,
+        "adamw": optim.AdamW,
         "sgd": optim.SGD,
         "rmsprop": optim.RMSprop
     }[optimizer_name]

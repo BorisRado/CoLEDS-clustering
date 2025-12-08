@@ -22,10 +22,37 @@ class TransformerEncoderModel(nn.Module):
         return encoder, cls_token
 
     def forward(self, x: torch.Tensor):
-        x = self.dp_encoder(x)
-        x = x.reshape(1, x.shape[0], self.token_dim)
-        x = torch.cat((self.cls_token, x), dim=1)
-        x = self.aggregator_model(x)
-        x = x[:,0]
-        assert x.shape == (1, self.token_dim)
-        return x
+        # Support both (batch_size, C, H, W) and (num_batches, batch_size, C, H, W) inputs
+        if x.ndim == 4:
+            # Standard case: (batch_size, C, H, W)
+            x = self.dp_encoder(x)
+            x = x.reshape(1, x.shape[0], self.token_dim)
+            x = torch.cat((self.cls_token, x), dim=1)
+            x = self.aggregator_model(x)
+            x = x[:,0]
+            assert x.shape == (1, self.token_dim)
+            return x
+        elif x.ndim == 5:
+            # Batch of batches: (num_batches, batch_size, C, H, W)
+            num_batches, batch_size, c, h, w = x.shape
+            # Reshape to (num_batches * batch_size, C, H, W)
+            x_reshaped = x.view(num_batches * batch_size, c, h, w)
+            # Encode all samples
+            x_encoded = self.dp_encoder(x_reshaped)
+            # Reshape to (num_batches, batch_size, token_dim)
+            x_encoded = x_encoded.view(num_batches, batch_size, self.token_dim)
+            # Process each batch separately through transformer
+            outputs = []
+            for i in range(num_batches):
+                batch_x = x_encoded[i]  # (batch_size, token_dim)
+                batch_x = batch_x.unsqueeze(0)  # (1, batch_size, token_dim)
+                batch_x = torch.cat((self.cls_token, batch_x), dim=1)  # (1, batch_size+1, token_dim)
+                batch_x = self.aggregator_model(batch_x)  # (1, batch_size+1, token_dim)
+                batch_x = batch_x[:,0]  # (1, token_dim)
+                outputs.append(batch_x)
+            # Stack outputs: (num_batches, 1, token_dim) -> (num_batches, token_dim)
+            return torch.cat(outputs, dim=0)
+        else:
+            raise ValueError(f"Expected 4D or 5D tensor, got {x.ndim}D tensor with shape {x.shape}")
+
+# NOTE: Don't use this model -- SL messes up batch normalization

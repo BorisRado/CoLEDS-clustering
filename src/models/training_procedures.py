@@ -11,12 +11,14 @@ from src.models.losses import ContrastiveLoss
 from src.models.helper import init_optimizer
 
 
-def _optimization_iteration(criterion, client_list, num_client_updates):
+def _optimization_iteration_sl(model, epoch_loaders, criterion, num_client_updates):
+
+    epoch_clients = [ContrastiveClient(deepcopy(model), dl) for dl in epoch_loaders]
 
     losses = []
     for _ in range(num_client_updates):
 
-        embeddings_1, embeddings_2 = zip(*[c.get_embeddings() for c in client_list])
+        embeddings_1, embeddings_2 = zip(*[c.get_embeddings() for c in epoch_clients])
         embeddings_1, embeddings_2 = torch.vstack(embeddings_1), torch.vstack(embeddings_2)
 
         embeddings_1.requires_grad_(True)
@@ -28,12 +30,12 @@ def _optimization_iteration(criterion, client_list, num_client_updates):
 
         grad_1, grad_2 = embeddings_1.grad, embeddings_2.grad
 
-        for i in range(len(client_list)):
-            client_list[i].backward(grad_1[i].unsqueeze(0), grad_2[i].unsqueeze(0))
+        for i in range(len(epoch_clients)):
+            epoch_clients[i].backward(grad_1[i].unsqueeze(0), grad_2[i].unsqueeze(0))
 
     gradient = None
-    for i in range(len(client_list)):
-        client_gradient = client_list[i].get_gradients()
+    for i in range(len(epoch_clients)):
+        client_gradient = epoch_clients[i].get_gradients()
         client_gradient = [grad / num_client_updates for grad in client_gradient]
 
         if gradient is None:
@@ -42,7 +44,34 @@ def _optimization_iteration(criterion, client_list, num_client_updates):
             for i, grad in enumerate(client_gradient):
                 gradient[i] += grad
     gradient = [g for g in gradient]
-    return np.mean(losses), gradient
+
+    # apply the gradient
+    for grad, param in zip(gradient, model.parameters()):
+        assert grad.shape == param.shape
+        param.grad = grad
+
+    return np.mean(losses)
+
+
+def _optimized_gradient_computation(model, epoch_loaders, criterion, num_client_updates):
+    losses = []
+    for _ in range(num_client_updates):
+        imgs1, imgs2 = [], []
+        for el in epoch_loaders:
+            il = iter(el)
+            imgs1.append(next(il)[0].unsqueeze(0))
+            imgs2.append(next(il)[0].unsqueeze(0))
+        imgs1 = torch.vstack(imgs1)
+        imgs2 = torch.vstack(imgs2)
+
+        embs1, embs2 = model(imgs1), model(imgs2)
+        # divide by num_client_updates since we are accumulating the gradient
+        loss = criterion(embs1, embs2)
+        # divide by num_client_updates as we are doing gradient accumulation
+        (loss / num_client_updates).backward()
+        losses.append(loss.detach().cpu().item())
+
+    return np.mean(losses)
 
 
 def train_contrastive(
@@ -53,36 +82,38 @@ def train_contrastive(
     fraction_fit,
     optimizer,
     batch_size,
+    optimized_computation,
     num_client_updates,
 ):
     print("Starting training")
+    _ = (batch_size,) # we pass batch_size just because we pass all the arguments in hydra
     n_sampled_clients = int(len(trainloaders) * fraction_fit)
 
     criterion = ContrastiveLoss(n_sampled_clients, temperature)
+
+    optimization_fn = _optimized_gradient_computation \
+        if optimized_computation else _optimization_iteration_sl
+
     for idx in range(num_iterations):
         epoch_loaders = sample(trainloaders, k=n_sampled_clients)
-        epoch_clients = [ContrastiveClient(deepcopy(model), dl) for dl in epoch_loaders]
 
         optimizer.zero_grad()
-        loss, gradient = _optimization_iteration(
+        loss = optimization_fn(
+            model=model,
+            epoch_loaders=epoch_loaders,
             criterion=criterion,
-            client_list=epoch_clients,
             num_client_updates=num_client_updates
         )
+        optimizer.step()
 
+        # bookkeeping
         if wandb.run is not None:
             wandb.log({"cl_loss": loss})
         if idx % 25 == 0:
             print(idx, loss)
 
-        # apply the gradient
-        for grad, param in zip(gradient, model.parameters()):
-            assert grad.shape == param.shape
-            param.grad = grad
-        optimizer.step()
 
-
-def train_ce(model, dataloader, proximal_mu=-1, optimizer=None, **kwargs):
+def train_ce(model, dataloader, proximal_mu=0.005, optimizer=None, **kwargs):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -98,6 +129,7 @@ def train_ce(model, dataloader, proximal_mu=-1, optimizer=None, **kwargs):
         optimizer = init_optimizer(model.parameters(), **kwargs)
 
     criterion = nn.CrossEntropyLoss()
+    losses = []
     for img, labels in dataloader:
         img, labels = img.to(device), labels.to(device)
 
@@ -114,4 +146,7 @@ def train_ce(model, dataloader, proximal_mu=-1, optimizer=None, **kwargs):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+
+        losses.append(loss.detach().cpu().item())
     model.to("cpu")
+    return np.mean(losses).item()

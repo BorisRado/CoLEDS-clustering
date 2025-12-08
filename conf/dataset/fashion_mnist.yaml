@@ -1,12 +1,12 @@
-dataset_name: cifar10
-input_shape: [3, 32, 32]
+dataset_name: mnist
+input_shape: [1, 28, 28]
 test_percentage: 0.2
 n_classes: 10
-horizontal_flipping: true # transform is applied during runtime
+horizontal_flipping: true
 transforms:
   _target_: torchvision.transforms.Compose
   transforms:
     - _target_: torchvision.transforms.ToTensor
     - _target_: torchvision.transforms.Normalize
-      mean: [0.4914, 0.4822, 0.4465]
-      std: [0.2471, 0.2435, 0.2616]
+      mean: [0.1307,]
+      std: [0.3081,]

@@ -6,6 +6,7 @@ import hydra
 from hydra.utils import instantiate
 from slwr.client.app import start_client
 
+from src.utils.colext import EnvironmentVariables as EV
 from src.data.utils import (
     get_datasets_from_cfg,
     to_pytorch_tensor_dataset
@@ -17,15 +18,16 @@ from src.slower.client import Client
 def run(cfg):
     if "client_idx" in cfg:
         client_idx = cfg.client_idx
+        server_ip = cfg.server_ip
     else:
-        assert False  # TODO: colext
-        client_idx = os.getenv("CLIENT_IDX", 0)
+        server_ip = os.environ[EV.SERVER_ADDRESS]
+        client_idx = int(os.environ[EV.CLIENT_ID])
 
     trainsets, valsets = get_datasets_from_cfg(cfg)
     trainset, valset = trainsets[client_idx], valsets[client_idx]
 
-    trainset = to_pytorch_tensor_dataset([trainset])[0]
-    valset = to_pytorch_tensor_dataset([valset])[0]
+    trainset = to_pytorch_tensor_dataset([trainset], to_cuda=False)[0]
+    valset = to_pytorch_tensor_dataset([valset], to_cuda=False)[0]
 
     model = instantiate(cfg.model, input_shape=cfg.dataset.input_shape)
 
@@ -38,7 +40,7 @@ def run(cfg):
     )
 
     set_seed(cfg.general.seed)
-    start_client(server_address=f"{cfg.server_ip}:50051", client=client)
+    start_client(server_address=server_ip, client=client)
 
 if __name__ == "__main__":
     run()

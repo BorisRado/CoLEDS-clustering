@@ -1,8 +1,9 @@
-from tqdm import tqdm
-
-import wandb
 import os
 import json
+
+import wandb
+from tqdm import tqdm
+from dotenv import load_dotenv
 
 
 def run():
@@ -19,4 +20,5 @@ def run():
 
 
 if __name__ == "__main__":
+    load_dotenv()
     run()

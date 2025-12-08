@@ -6,6 +6,7 @@ old
 data/raw
 slurm/history
 .wandb_cache
+.tmp_cache
 
 *.pdf
 *.err

@@ -2,3 +2,4 @@ dataset_name: femnist
 input_shape: [1, 28, 28]
 test_percentage: 0.2
 n_classes: 62
+horizontal_flipping: false

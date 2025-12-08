@@ -30,7 +30,7 @@ def generate_random_shape_image(shape, color):
         triangle = plt.Polygon([[5, 8], [2, 2], [8, 2]], color=color)
         ax.add_patch(triangle)
         label = 2
-    elif shape == 'cross':
+    elif shape == "cross":
         cross = plt.Polygon([[4, 10], [6, 10], [6, 6], [10, 6], [10, 4], [6, 4], [6, 0], [4, 0], [4, 4], [0, 4], [0, 6], [4, 6]], color=color)
         ax.add_patch(cross)
         label = 3
@@ -104,7 +104,7 @@ def generate_dataset(dataset_size, p, dictionary=True):
         return dataset
     else:
         labels = torch.tensor(labels)
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         return TensorDataset(
             images.to(device, non_blocking=True),
             labels.to(device, non_blocking=True)

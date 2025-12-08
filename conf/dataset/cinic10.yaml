@@ -1,11 +1,12 @@
-dataset_name: cifar10
+dataset_name: flwrlabs/cinic10
 input_shape: [3, 32, 32]
-test_percentage: 0.2
+test_percentage: 0.25
 n_classes: 10
 horizontal_flipping: true # transform is applied during runtime
 transforms:
   _target_: torchvision.transforms.Compose
   transforms:
+    - _target_: src.data.utils.ToRgb
     - _target_: torchvision.transforms.ToTensor
     - _target_: torchvision.transforms.Normalize
       mean: [0.4914, 0.4822, 0.4465]
