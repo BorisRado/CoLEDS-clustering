@@ -56,10 +56,10 @@ def run(cfg):
 
         dataset = _get_random_dataset(cfg.dataset.dataset_size, cfg.dataset.input_shape)
 
-        start_time = time.time()
+        start_time = time.perf_counter()
         with torch.no_grad():
             _ = cem.get_embedding(dataset)
-        end_time = time.time()
+        end_time = time.perf_counter()
         if idx == 0:
             # do not use the time in the first iteration, may include
             # some initialization overhead that we do not want to measure
