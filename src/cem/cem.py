@@ -34,4 +34,9 @@ class CEM(ABC):
         return np.empty((1,0),)
 
     def get_dataloader(self, dataset, batch_size=32, shuffle=False):
-        return DataLoader(dataset=dataset, batch_size=batch_size, shuffle=shuffle)
+        return DataLoader(
+            dataset=dataset,
+            batch_size=batch_size,
+            shuffle=shuffle,
+            pin_memory=torch.cuda.is_available()
+        )

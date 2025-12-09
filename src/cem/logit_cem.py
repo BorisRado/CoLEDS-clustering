@@ -30,10 +30,10 @@ class LogitCEM(CEM):
         ho_dataset = self.public_dataset
         model.to(self.device)
         dataloader = self.get_dataloader(ho_dataset, shuffle=False)
+        model.eval()
         out = torch.vstack([
-            model(b.to(self.device)).cpu() for b, _ in dataloader
-        ]).numpy()
-        del model
+            model(b.to(self.device)) for b, _ in dataloader
+        ]).cpu().numpy()
         return out.reshape(1, -1)
 
     def __str__(self):

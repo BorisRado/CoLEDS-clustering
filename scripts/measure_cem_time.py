@@ -6,7 +6,6 @@ from pathlib import Path
 import hydra
 import torch
 from hydra.core.config_store import OmegaConf
-from tqdm import tqdm
 
 from src.cem.helper import load_cem
 from src.utils.other import get_exp_folder, set_torch_flags
@@ -38,7 +37,7 @@ def run(cfg):
         experiment_folder = get_exp_folder()
 
     cem_kwargs = {}
-    if "Logit" in cfg["cem"]["_target_"].split(".")[-1]:
+    if "cem" in cfg and "Logit" in cfg["cem"]["_target_"].split(".")[-1]:
         cem_kwargs["public_dataset"] = _get_random_dataset(
             cfg.cem.public_dataset_size,
             cfg.dataset.input_shape
@@ -52,7 +51,7 @@ def run(cfg):
     print("CEM NAME", str(cem))
 
     computation_times = []
-    for idx in tqdm(range(cfg.n_evaluations + 1)):
+    for idx in range(cfg.n_evaluations + 1):
 
         dataset = _get_random_dataset(cfg.dataset.dataset_size, cfg.dataset.input_shape)
 
@@ -66,7 +65,8 @@ def run(cfg):
             continue
         computation_times.append(end_time - start_time)
 
-        time.sleep(2)  # to cool down a bit
+        time.sleep(0.5)  # to cool down a bit
+        print(idx)
 
     data = {
         "GPU": torch.cuda.is_available(),
