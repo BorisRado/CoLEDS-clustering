@@ -114,7 +114,7 @@ def run_exists_already(config, folder):
     config_hash = hashlib.md5(config_str.encode()).hexdigest()
     filename = os.path.join(folder, f"config_{config_hash}.json")
 
-    # Double-check that file doesn't exist (in case another process created it)
+    # Double-check that file doesn't exist (in case of clashes)
     assert not os.path.exists(filename)
     with open(filename, "w") as fp:
         json.dump(new_conf, fp, indent=2)

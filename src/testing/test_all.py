@@ -17,7 +17,7 @@ def test_all(cem, trainsets, valsets, max_clusters=20, **kwargs):
     gt_label_dist = np.vstack([vs._label_distribution for vs in valsets])
     clusterer = Clusterer(cem, datasets)
     results = {
-        "silhouette": get_silhouette_scores(clusterer.init_embeddings["train"], max_clusters=max_clusters),
+        # "silhouette": get_silhouette_scores(clusterer.init_embeddings["train"], max_clusters=max_clusters),
         "correlation": compute_correlation(gt_label_dist, clusterer.init_embeddings["val"]),
         # "similarity": compute_similarity(clusterer, gt_label_dist, max_clusters=max_clusters),
     }

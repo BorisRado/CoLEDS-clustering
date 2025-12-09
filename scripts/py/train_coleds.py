@@ -28,7 +28,6 @@ the similarity of dataset embeddings and the similarity of the dataset labels ch
 @hydra.main(version_base=None, config_path="../../conf", config_name="coleds")
 def run_all(cfg):
     set_seed(cfg.general.seed)
-    trainsets, valsets = None, None
     trainsets, valsets = get_datasets_from_cfg(cfg)
     trainsets = to_pytorch_tensor_dataset(trainsets, n_classes=cfg.dataset.n_classes)
     valsets = to_pytorch_tensor_dataset(valsets, n_classes=cfg.dataset.n_classes)
