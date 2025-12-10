@@ -3,13 +3,13 @@ import warnings
 import torch
 from torch.utils.data import TensorDataset
 
-from src.cem.cem import CEM, check_dtype
+from src.profiler.profiler import Profiler, check_dtype
 
 
 warnings.filterwarnings('ignore')
 
 
-class SingleModelCEM(CEM):
+class SingleModelProfiler(Profiler):
 
     def __init__(self, model):
         self.model = model

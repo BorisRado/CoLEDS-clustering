@@ -1,8 +1,5 @@
-import random
-
 from hydra.utils import instantiate
 import torch
-import torchvision.transforms as T
 from flwr_datasets import FederatedDataset
 from datasets.utils.logging import disable_progress_bar
 
@@ -23,7 +20,7 @@ def train_test_split(dataset, test_percentage, seed):
 
 
 
-def partition_dataset(dataset, partitioner, test_percentage, transforms_generator, seed):
+def partition_dataset(dataset, partitioner, test_percentage, transforms, seed):
     if "femnist" in dataset:
         seed_ = 42
     else:
@@ -42,9 +39,8 @@ def partition_dataset(dataset, partitioner, test_percentage, transforms_generato
             if "character" in dataset.column_names:
                 dataset = dataset.rename_column("character", "label")
             dataset = dataset.select_columns(["img", "label"])
-        except KeyError:
+        except (KeyError,ValueError):
             break
-        transforms = next(transforms_generator)
         dataset = _apply_client_transforms(dataset, transforms)
 
         # tpl = train_test_split(dataset, test_percentage, seed)
@@ -69,13 +65,3 @@ def _apply_client_transforms(dataset, transforms):
     return dataset.map(
         lambda img: {"img": transforms(img)}, input_columns="img"
     ).with_format("torch")
-
-
-def _get_random_float(min_=0., max_=1.):
-    return random.uniform(min_, max_)
-
-
-def get_transform_iterator(n_transforms, config):
-
-    while True:
-        yield instantiate(config.transforms)

@@ -32,15 +32,15 @@ def init_wandb(cfg):
     config = OmegaConf.to_container(cfg)
 
     try:
-        cem_name = cfg.cem._target_.split(".")[-1]
+        profiler_name = cfg.profiler._target_.split(".")[-1]
     except:
-        cem_name = cfg.model._target_.split(".")[-1]
+        profiler_name = cfg.model._target_.split(".")[-1]
 
-    config["cem_name"] = cem_name
+    config["profiler_name"] = profiler_name
     log_keys = cfg.wandb.loggin_keys
     lv = [f"{k}{get_value(config, k)}" for k in log_keys]
 
-    exp_name = "_".join([cem_name] + lv)
+    exp_name = "_".join([profiler_name] + lv)
     flat_config = flatten_dict(config)
 
     if cfg.wandb.log_to_wandb:

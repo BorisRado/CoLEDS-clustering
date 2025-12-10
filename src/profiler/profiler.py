@@ -10,12 +10,12 @@ def check_dtype(func):
         assert isinstance(dataset, Dataset), f"{dataset} {type(dataset)}"
         assert not torch.is_grad_enabled()
         res = func(self, dataset)
-        assert isinstance(res, np.ndarray) and res.shape[0] == 1
+        assert isinstance(res, np.ndarray) and res.shape[0] == 1 and res.ndim == 2
         return res
     return wrapper
 
 
-class CEM(ABC):
+class Profiler(ABC):
 
     @abstractmethod
     def get_embedding(self, dataset: Dataset) -> np.ndarray:
@@ -38,5 +38,4 @@ class CEM(ABC):
             dataset=dataset,
             batch_size=batch_size,
             shuffle=shuffle,
-            pin_memory=torch.cuda.is_available()
         )

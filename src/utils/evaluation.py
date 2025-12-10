@@ -7,12 +7,12 @@ from src.utils.wandb import log_table
 from src.testing.test_all import test_all
 
 
-def eval_fn(cem, trainsets, valsets, experiment_folder, iter, **kwargs):
+def eval_fn(profiler, trainsets, valsets, experiment_folder, iter, **kwargs):
     with TempRng(1602):
-        results = test_all(cem, trainsets, valsets, **kwargs)
-    cem_name = cem.__class__.__name__
+        results = test_all(profiler, trainsets, valsets, **kwargs)
+    profiler_name = profiler.__class__.__name__
     for k, values in results.items():
-        log_table(values, experiment_folder, f"{cem_name}_{k}_{iter}", iter=iter)
+        log_table(values, experiment_folder, f"{profiler_name}_{k}_{iter}", iter=iter)
     corr = results["correlation"][0]["correlation"]
     if wandb.run is not None:
         wandb.log({"correlation": corr, "iter": iter})

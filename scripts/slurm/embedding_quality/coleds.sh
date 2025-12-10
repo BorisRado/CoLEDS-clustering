@@ -10,11 +10,18 @@
 
 source scripts/slurm/embedding_quality/common.sh
 
+rm -rf .tmp_cache
+
+MAX_EPOCHS=50
+ITERATIONS_PER_EPOCH=40
+PATIENCE=6
+
 COMMON_ARGS="
     partitioning.alpha=$DIRICHLET_ALPHA                   \
     wandb.log_to_wandb=true                               \
     experiment.name=$EXP_NAME                             \
     general.max_epochs=$MAX_EPOCHS                        \
+    general.patience=$PATIENCE                            \
     train_config.num_iterations=$ITERATIONS_PER_EPOCH
 "
 

@@ -2,9 +2,8 @@ from copy import deepcopy
 
 import numpy as np
 import torch
-from torch.utils.data import DataLoader
 
-from src.cem.cem import CEM, check_dtype
+from src.profiler.profiler import Profiler, check_dtype
 from src.utils.parameters import get_parameters
 from src.models.training_procedures import train_ce
 
@@ -14,7 +13,7 @@ def _flatten_model(model):
     return np.hstack([p.reshape(-1) for p in params])
 
 
-class WeightDiffCEM(CEM):
+class WeightDiffProfiler(Profiler):
 
     def __init__(self, init_model, ft_epochs, batch_size, optim_kwargs):
         super().__init__()

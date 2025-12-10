@@ -3,10 +3,11 @@ from hydra.utils import instantiate
 from hydra.core.config_store import OmegaConf
 
 from src.utils.stochasticity import TempRng
-from src.cem.single_model_cem import SingleModelCEM
+from src.profiler.single_model_profiler import SingleModelProfiler
 
 
 def load_cem(cem_config, cem_folder, **kwargs):
+    raise Exception("Needs to be re-implemented!!")
     n_classes = cem_config.dataset.n_classes
 
     if "cem" in cem_config:
@@ -49,5 +50,5 @@ def load_cem(cem_config, cem_folder, **kwargs):
         model = instantiate(cem_config.model, input_shape=cem_config.dataset.input_shape)
         if cem_folder is not None:
             model.load_state_dict(torch.load(cem_folder / "cem.pth"))
-        cem = SingleModelCEM(model)
+        cem = SingleModelProfiler(model)
     return cem

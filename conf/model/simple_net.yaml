@@ -1,1 +1,3 @@
 _target_: src.models.models.SimpleClfNet
+input_shape: ${dataset.input_shape}
+n_classes: ${dataset.n_classes}

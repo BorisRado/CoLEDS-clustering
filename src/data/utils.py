@@ -10,7 +10,7 @@ from hydra.utils import instantiate
 
 from src.utils.stochasticity import TempRng
 from src.data.synthetic_dataset import generate_dataset
-from src.data.partitioning import partition_dataset, get_transform_iterator, train_test_split
+from src.data.partitioning import partition_dataset, train_test_split
 from src.data.synthetic_dataset import generate_synthetic_datasets
 import torch.multiprocessing as mp
 
@@ -82,12 +82,12 @@ def get_datasets_from_cfg(cfg):
 
     partitioner = instantiate(cfg.partitioning)
 
-    transforms = get_transform_iterator(0, cfg.dataset)
+    transforms = instantiate(cfg.dataset.transforms)
     datasets = partition_dataset(
         cfg.dataset.dataset_name,
         partitioner,
         cfg.dataset.test_percentage,
-        transforms_generator=transforms,
+        transforms=transforms,
         seed=cfg.general.seed
     )
 
@@ -95,8 +95,9 @@ def get_datasets_from_cfg(cfg):
     return trainsets, valsets
 
 
-def get_holdout_dataset(dataset_name):
-    if dataset_name == "synthetic":
+def get_holdout_dataset(config):
+    dataset_name = config.dataset_name
+    if config.dataset_name == "synthetic":
         with TempRng(58):
             dataset = generate_dataset(50, -1.0, dictionary=False)
         return dataset
@@ -105,7 +106,7 @@ def get_holdout_dataset(dataset_name):
         "root": Path(torch.hub.get_dir()) / "datasets",
         "train": False,
         "download": False,
-        "transform": T.ToTensor()
+        "transform": instantiate(config.transforms)
     }
 
     holdout_dataset = {

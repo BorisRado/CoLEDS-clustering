@@ -9,8 +9,6 @@ export HF_DATASETS_CACHE="/mnt/scratch/radovib"
 DIRICHLET_ALPHA=0.2
 EXP_NAME="embedding_quality"
 SEEDS=(4 8 15)  # 4 8 15 16 23 42
-MAX_EPOCHS=40
-ITERATIONS_PER_EPOCH=40
 
 set_partition_by() {
     local dataset=$1

@@ -2,21 +2,21 @@ from copy import deepcopy
 
 import torch
 
-from src.cem.cem import CEM, check_dtype
+from src.profiler.profiler import Profiler, check_dtype
 from src.models.training_procedures import train_ce
 
 
-class LogitCEM(CEM):
+class LogitProfiler(Profiler):
 
-    def __init__(self, init_model, ft_epochs, batch_size, optim_kwargs, public_dataset=None):
+    def __init__(self, init_model, ft_epochs, batch_size, optim_kwargs, public_dataset):
         super().__init__()
         self.model = deepcopy(init_model)
         self.optim_kwargs = optim_kwargs
         self.ft_epochs = ft_epochs
         self.batch_size = batch_size
-        assert self.public_dataset is not None
         self.public_dataset = public_dataset
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        assert self.public_dataset is not None
 
     @check_dtype
     def get_embedding(self, dataset):

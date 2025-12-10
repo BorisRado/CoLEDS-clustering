@@ -1,0 +1,3 @@
+_target_: src.models.models.VariationalAutoencoder
+latent_dim: 15 # as reported in the paper
+input_shape: ${dataset.input_shape}

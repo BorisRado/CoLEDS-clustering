@@ -6,9 +6,9 @@ from sklearn.cluster import KMeans
 
 class Clusterer:
 
-    def __init__(self, cem, datasets_dict):
+    def __init__(self, profiler, datasets_dict):
         super().__init__()
-        self.cem = cem
+        self.profiler = profiler
         self.init_embeddings = {
             key: np.vstack([self.get_embedding(ds) for ds in datasets])
             for key, datasets in datasets_dict.items()
@@ -16,7 +16,7 @@ class Clusterer:
 
     def get_embedding(self, dataset):
         with torch.no_grad():
-            emb = self.cem.get_embedding(dataset)
+            emb = self.profiler.get_embedding(dataset)
         return preprocessing.normalize(emb)
 
     def init_kmeans_model(self, n_clusters, partition="train"):

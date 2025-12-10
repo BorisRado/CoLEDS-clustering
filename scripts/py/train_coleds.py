@@ -13,7 +13,7 @@ from src.data.utils import (
     to_pytorch_tensor_dataset
 )
 from src.utils.stochasticity import set_seed, TempRng
-from src.cem.single_model_cem import SingleModelCEM
+from src.profiler.single_model_profiler import SingleModelProfiler
 from src.models.training_procedures import train_contrastive
 from src.models.helper import init_optimizer
 from src.utils.evaluation import get_evaluation_fn
@@ -41,18 +41,19 @@ def run_all(cfg):
 
 
 def run(cfg, trainsets, valsets):
+    OmegaConf.resolve(cfg)
     if run_exists_already(cfg):
         print("Run exists already. Returning...")
         return
+    experiment_folder = get_exp_folder()
+    cfg.experiment.folder = str(experiment_folder)
     print(OmegaConf.to_yaml(cfg))
     set_seed(cfg.general.seed)
     init_wandb(cfg)
     start_time = time.time()
-    experiment_folder = get_exp_folder()
-    cfg.experiment.folder = str(experiment_folder)
 
     with TempRng(cfg.general.seed):
-        model = instantiate(cfg.model, input_shape=cfg.dataset.input_shape)
+        model = instantiate(cfg.model)
     if torch.cuda.is_available():
         model = model.cuda()
 
@@ -61,8 +62,8 @@ def run(cfg, trainsets, valsets):
     # get all comparison values, i.e. before training and simple CEMs
     eval_fn = get_evaluation_fn(cfg, trainsets, valsets, experiment_folder)
 
-    cem_fn = lambda mdl: SingleModelCEM(model=copy.deepcopy(mdl))
-    best_correlation = eval_fn(cem=cem_fn(model), iter=-1)
+    profiler_fn = lambda mdl: SingleModelProfiler(model=copy.deepcopy(mdl))
+    best_correlation = eval_fn(profiler=profiler_fn(model), iter=-1)
 
     all_correlations = [best_correlation]
     rounds_without_improvement = 0
@@ -87,7 +88,7 @@ def run(cfg, trainsets, valsets):
             optimizer = optimizer,
             **OmegaConf.to_container(cfg.train_config),
         )
-        tmp_corr = eval_fn(cem=cem_fn(model), iter=idx)
+        tmp_corr = eval_fn(profiler=profiler_fn(model), iter=idx)
         print(f"Got correlation: {tmp_corr}")
         all_correlations.append(tmp_corr)
 

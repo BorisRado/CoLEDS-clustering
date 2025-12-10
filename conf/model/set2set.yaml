@@ -1,3 +1,5 @@
 _target_: src.models.set2set_model.Set2SetModel
 processing_steps: 4
 hidden_dim: 48
+input_shape: ${dataset.input_shape}
+num_layers: 2

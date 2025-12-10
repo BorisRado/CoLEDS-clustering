@@ -7,14 +7,12 @@ def test(model, testloader):
     model.to(device)
     model.eval()
 
-    forward_fn = lambda x: model["clf_head"](model["encoder"](x)) \
-        if isinstance(model, torch.nn.ModuleDict) else model(x)
     correct = 0
     with torch.no_grad():
         for img, label in testloader:
             images = img.to(device)
             labels = label.to(device)
-            outputs = forward_fn(images)
+            outputs = model(images)
             correct += (torch.max(outputs.data, 1)[1] == labels).sum().item()
     accuracy = correct / len(testloader.dataset)
     model.to("cpu")
@@ -29,15 +27,16 @@ def test_ae(model, testloader):
 
     if not isinstance(model, torch.nn.ModuleDict):
         return -1
-    criterion = torch.nn.MSELoss(reduction="sum")
 
-    loss = 0.
+    recon_loss = 0.
     with torch.no_grad():
         for img, _ in testloader:
             images = img.to(device)
-
-            outputs = model["recon_head"](model["encoder"](images))
-            loss += criterion(outputs, images)
+            recon, _, _ = model(images)
+            recon_loss += torch.nn.functional.mse_loss(recon, images, reduction="sum")
 
     model.to("cpu")
-    return loss.item() / len(testloader.dataset)
+    model.train()
+
+    # Return average reconstruction loss (or total loss if you prefer)
+    return recon_loss.item() / len(testloader.dataset)

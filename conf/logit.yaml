@@ -1,15 +1,24 @@
 defaults:
   - partitioning: dirichlet
-  - dataset: cifar10
-  - cem: logit
+  - dataset@dataset: cifar10
+  - dataset@public_dataset: cifar100
   - optimizer: adam  # used both for FL training and getting weight difference
   - model: simple_net
   - _self_
 general:
   seed: 10
+  eval_iterations: 4
+  epochs_per_iteration: 10
+profiling:
+  ft_epochs: 1
+  batch_size: 32
+  public_dataset_size: 100
 train_config:
   batch_size: 32 # used both for FL training and getting weight difference
-  train_epochs: 30 # evaluate the CEM after trianing the model this many epochs
+  train_epochs: 10 # evaluate the CEM after trianing the model this many epochs
 wandb:
   log_to_wandb: false
   loggin_keys: []
+experiment:
+  folder: ...
+  name: ...

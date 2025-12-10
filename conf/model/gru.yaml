@@ -1,2 +1,3 @@
 _target_: src.models.gru.GRUModel
 hidden_dim: 48
+input_shape: ${dataset.input_shape}

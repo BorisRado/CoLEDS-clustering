@@ -1,7 +1,8 @@
+import torch.nn as nn
 from flwr.client import NumPyClient
 from torch.utils.data import DataLoader
 
-from src.models.evaluation_procedures import test
+from src.models.evaluation_procedures import test, test_ae
 from src.models.helper import init_optimizer
 from src.utils.parameters import get_parameters, set_parameters
 from src.utils.stochasticity import set_seed
@@ -31,6 +32,10 @@ class FlowerClient(NumPyClient):
     def evaluate(self, parameters, config):
         _ = (config,)
         set_parameters(self.model, parameters)
+
+        if isinstance(self.model, nn.ModuleDict) and "recon_head" in self.model:
+            loss = test_ae(self.model, self.valloader)
+            return loss, len(self.valloader.dataset), {"recon_loss": loss}
 
         accuracy = test(self.model, self.valloader)
         return accuracy, len(self.valloader.dataset), {"accuracy": accuracy}

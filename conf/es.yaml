@@ -1,18 +1,21 @@
 defaults:
   - partitioning: dirichlet
   - dataset: cifar10
-  - optimizer: adam  # used both for FL training and getting weight difference
-  - model: simple_net
+  - optimizer: adam  # used for FL training
+  - model: simple_net # MUST be a ModuleDict -- if contains "clf_head" => classification, "recon_head" => Autoencoder
   - _self_
 general:
   seed: 10
   eval_iterations: 4
   epochs_per_iteration: 10
+profiling:
+  statistics:
+    - mean
+    - q25
+    - q50
+    - q75
 train_config:
   batch_size: 32 # used for FL training
-profiling:
-  ft_epochs: 1
-  batch_size: 16
 wandb:
   log_to_wandb: false
   loggin_keys: []

@@ -1,3 +1,4 @@
+import time
 from copy import deepcopy
 from random import sample
 
@@ -5,6 +6,7 @@ import wandb
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from src.utils.cl_client import ContrastiveClient
 from src.models.losses import ContrastiveLoss
@@ -85,6 +87,7 @@ def train_contrastive(
     optimized_computation,
     num_client_updates,
 ):
+    start_time = time.time()
     print("Starting training")
     _ = (batch_size,) # we pass batch_size just because we pass all the arguments in hydra
     n_sampled_clients = int(len(trainloaders) * fraction_fit)
@@ -109,15 +112,14 @@ def train_contrastive(
         # bookkeeping
         if wandb.run is not None:
             wandb.log({"cl_loss": loss})
-        if idx % 25 == 0:
+        if idx % 10 == 0:
             print(idx, loss)
+    print(f"Contrastive iteration time: {time.time() - start_time:.2f}")
 
 
 def train_ce(model, dataloader, proximal_mu=0.005, optimizer=None, **kwargs):
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    # print(f"training on {device} {len(dataloader.dataset)}")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     if proximal_mu > 0:
         global_model = deepcopy(model)
@@ -148,5 +150,38 @@ def train_ce(model, dataloader, proximal_mu=0.005, optimizer=None, **kwargs):
         optimizer.step()
 
         losses.append(loss.detach().cpu().item())
+    model.to("cpu")
+    return np.mean(losses).item()
+
+
+def train_vae(model, dataloader, beta=5e-4, optimizer=None, **kwargs):
+
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+    model.train()
+    model.to(device)
+
+    if optimizer is None:
+        optimizer = init_optimizer(model.parameters(), **kwargs)
+
+    losses = []
+    for imgs, _ in dataloader:
+        imgs = imgs.to(device)
+        recon, mu, logvar = model(imgs)
+
+        # Reconstruction loss (MSE)
+        recon_loss = F.mse_loss(recon, imgs, reduction="sum")
+
+        # KL Divergence loss
+        kld_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+        loss = recon_loss + beta * kld_loss
+        loss /= imgs.shape[0]
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        losses.append(loss.detach().cpu().item())
+
     model.to("cpu")
     return np.mean(losses).item()
