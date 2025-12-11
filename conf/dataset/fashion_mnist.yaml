@@ -1,4 +1,4 @@
-dataset_name: mnist
+dataset_name: zalando-datasets/fashion_mnist
 input_shape: [1, 28, 28]
 test_percentage: 0.2
 n_classes: 10

@@ -4,6 +4,7 @@ defaults:
   - optimizer: adam  # used for FL training
   - model: simple_net # MUST be a ModuleDict -- if contains "clf_head" => classification, "recon_head" => Autoencoder
   - _self_
+profiler: es
 general:
   seed: 10
   eval_iterations: 4

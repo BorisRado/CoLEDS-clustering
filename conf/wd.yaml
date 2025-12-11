@@ -4,6 +4,7 @@ defaults:
   - optimizer: adam  # used both for FL training and getting weight difference
   - model: simple_net
   - _self_
+profiler: wd
 general:
   seed: 10
   eval_iterations: 4

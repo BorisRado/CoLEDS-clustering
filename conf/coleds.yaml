@@ -4,6 +4,7 @@ defaults:
   - dataset: cifar10
   - optimizer: adam
   - _self_
+profiler: coleds
 general:
   seed: 10
   max_epochs: 30 # maximum number of times we check for correlation
