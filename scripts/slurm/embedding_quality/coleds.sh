@@ -1,6 +1,6 @@
 #!/bin/bash -l
 
-#SBATCH --ntasks=6
+#SBATCH --ntasks=8
 #SBATCH --time=3-00:00:00
 #SBATCH --cpus-per-task=8
 #SBATCH --gpus-per-task=1
@@ -9,8 +9,6 @@
 
 
 source scripts/slurm/embedding_quality/common.sh
-
-rm -rf .tmp_cache
 
 MAX_EPOCHS=50
 ITERATIONS_PER_EPOCH=40
@@ -31,16 +29,15 @@ COMMON_ARGS="
 #### 9 * 4 = 36 tests / dataset / seed ==>>>> 216 tests
 for DATASET in cifar10 cinic10; do
 for seed in "${SEEDS[@]}"; do
+for bs in 1 2 4 8 16 32 48 64 96; do
 set_partition_by "$DATASET"
 
-all_batch_sizes1="[2,8,32,48,96]"
-all_batch_sizes2="[1,4,16,64]"
 all_temeratures="[0.05,0.2,0.5,1.0]"
 all_fraction_fits="[0.5]"
 all_num_client_updates="[4]"
 model="set2set"
 
-ARGS="
+srun -Q -N1 --ntasks=1 python -u scripts/py/train_coleds.py   \
     $COMMON_ARGS                                              \
     model=$model                                              \
     train_config.fraction_fit=$all_fraction_fits              \
@@ -48,12 +45,10 @@ ARGS="
     train_config.temperature=$all_temeratures                 \
     dataset=$DATASET                                          \
     general.seed=$seed                                        \
-    partitioning.partition_by=$partition_by
-"
+    train_config.batch_size=$bs                               \
+    partitioning.partition_by=$partition_by &
 
-srun -Q -N1 --ntasks=1 python -u scripts/py/train_coleds.py train_config.batch_size=$all_batch_sizes1 $ARGS &
-srun -Q -N1 --ntasks=1 python -u scripts/py/train_coleds.py train_config.batch_size=$all_batch_sizes2 $ARGS &
-
+done
 done
 done
 

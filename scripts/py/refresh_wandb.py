@@ -1,22 +1,23 @@
 import os
-import json
 
 import wandb
 from tqdm import tqdm
 from dotenv import load_dotenv
 
+from src.utils.wandb import run_exists_already
+
 
 def run():
+    folder = ".tmp_cache"
     api = wandb.Api(timeout=30)
     runs = api.runs(per_page=100000, filters={
         **{"state": "finished"},
     })
-    configs = [(run.id, run.config) for run in runs]
-    os.makedirs(".wandb_cache", exist_ok=True)
+    os.makedirs(folder)
 
-    for run_id, config in tqdm(configs):
-        with open(f".wandb_cache/{run_id}.json", "w") as f:
-            json.dump(config, f)
+    for run in tqdm(runs):
+        config = run.config
+        assert not run_exists_already(config)
 
 
 if __name__ == "__main__":

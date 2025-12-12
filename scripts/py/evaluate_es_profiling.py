@@ -8,7 +8,7 @@ from hydra.core.config_store import OmegaConf
 from src.data.utils import get_datasets_from_cfg, to_pytorch_tensor_dataset
 from src.utils.evaluation import get_evaluation_fn
 from src.utils.stochasticity import set_seed
-from src.utils.wandb import init_wandb, finish_wandb
+from src.utils.wandb import init_wandb, finish_wandb, run_exists_already
 from src.models.training_procedures import train_ce, train_vae
 from src.flower.train import train_flower
 from src.utils.other import get_exp_folder, set_torch_flags
@@ -18,6 +18,9 @@ from src.profiler.es_profiler import EmbeddingSpaceProfiler
 @hydra.main(version_base=None, config_path="../../conf", config_name="es")
 def run(cfg):
     OmegaConf.resolve(cfg)
+    if run_exists_already(cfg):
+        print("Run exists already. Returning...")
+        return
     experiment_folder = get_exp_folder()
     cfg.experiment.folder = str(experiment_folder)
     print(OmegaConf.to_yaml(cfg))

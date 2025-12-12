@@ -55,7 +55,6 @@ def iterate_configs(cfg: DictConfig, multirun_columns: List[str]) -> Iterator[Di
             assert isinstance(value, (int, float, str, bool)), str(type(value))
             # If it's not a list, treat it as a single-item list
             multirun_values.append([value])
-        print(column, multirun_values[-1])
 
     # If no multirun columns found, yield the original config
     if not multirun_values:

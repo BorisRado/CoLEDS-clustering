@@ -92,11 +92,16 @@ def lock_folder(folder_path):
 
 @lock_folder(".tmp_cache")
 def run_exists_already(config, folder):
-    if not config.wandb.log_to_wandb:
+    new_conf = config
+    if not isinstance(config, dict):
+        new_conf = flatten_dict(OmegaConf.to_container(config))
+
+    if not new_conf["wandb.log_to_wandb"]:
         return False
 
-    new_conf = flatten_dict(OmegaConf.to_container(config))
     del new_conf["experiment.folder"]
+    if "profiler_name" in new_conf:
+        del new_conf["profiler_name"]
 
     # Check if configuration already exists
     for filename in os.listdir(folder):
@@ -115,8 +120,9 @@ def run_exists_already(config, folder):
     filename = os.path.join(folder, f"config_{config_hash}.json")
 
     # Double-check that file doesn't exist (in case of clashes)
-    assert not os.path.exists(filename)
-    with open(filename, "w") as fp:
-        json.dump(new_conf, fp, indent=2)
+    assert not os.path.exists(filename), f"FILE: {str(filename)}"
+    with open(filename, "w") as f:
+        json.dump(new_conf, f, sort_keys=True, indent=2)
+        f.write("\n")
 
     return False
