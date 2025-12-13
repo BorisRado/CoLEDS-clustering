@@ -1,3 +1,4 @@
+import uuid
 from functools import partial
 from dotenv import load_dotenv
 
@@ -64,7 +65,7 @@ def run(cfg):
             seed=cfg.general.seed,
         )
         tmp_corr = eval_fn(
-            cem=profiler_fn(init_model=model),
+            profiler=profiler_fn(init_model=model),
             iter=idx
         )
         print("Got correlation: ", tmp_corr)
@@ -76,6 +77,7 @@ def run(cfg):
 
 
 if __name__ == "__main__":
+    OmegaConf.register_new_resolver("uuid", lambda: str(uuid.uuid4())[:8])
     set_torch_flags()
     load_dotenv()
     run()

@@ -1,3 +1,4 @@
+import uuid
 from functools import partial
 from dotenv import load_dotenv
 
@@ -84,6 +85,7 @@ def run(cfg):
 
 
 if __name__ == "__main__":
+    OmegaConf.register_new_resolver("uuid", lambda: str(uuid.uuid4())[:8])
     set_torch_flags()
     load_dotenv()
     run()

@@ -1,10 +1,10 @@
 #!/bin/bash -l
 
-#SBATCH --ntasks=1
+#SBATCH --ntasks=4
 #SBATCH --time=20:00:00
-#SBATCH --cpus-per-task=16
+#SBATCH --cpus-per-task=8
+#SBATCH --gpus-per-task=1
 #SBATCH --mem-per-cpu=2G
-#SBATCH --gpus=1
 #SBATCH --out=logs/embedding_quality_es.txt
 
 
@@ -33,7 +33,7 @@ srun -Q -N1 --ntasks=1 python -u scripts/py/evaluate_es_profiling.py      \
     dataset=$DATASET                                                      \
     partitioning.partition_by=$partition_by                               \
     general.seed=$seed                                                    \
-    model=$model
+    model=$model &
 
 done
 done
