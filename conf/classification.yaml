@@ -1,0 +1,26 @@
+defaults:
+  - partitioning: natural
+  - dataset: femnist
+  - optimizer: adam  # used both for FL training and getting weight difference
+  - model: simple_net
+  - _self_
+general:
+  seed: 10
+train_config:
+  batch_size: 32 # used for FL training
+  proximal_mu: -1
+  num_epochs: 150
+
+final_evaluation:
+  n_holdout_clients: 1000
+
+strategy:
+  fraction_fit: 0.1
+  fraction_evaluate: 0.2
+  evaluation_frequency: 5
+
+wandb:
+  log_to_wandb: false
+  loggin_keys: []
+experiment:
+  folder: ...

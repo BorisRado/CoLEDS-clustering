@@ -1,4 +1,3 @@
-from hydra.utils import instantiate
 import torch
 from flwr_datasets import FederatedDataset
 from datasets.utils.logging import disable_progress_bar
@@ -21,11 +20,7 @@ def train_test_split(dataset, test_percentage, seed):
 
 
 def partition_dataset(dataset, partitioner, test_percentage, transforms, seed):
-    if "femnist" in dataset:
-        seed_ = 42
-    else:
-        seed_ = seed
-    fds = FederatedDataset(dataset=dataset, partitioners={"train": partitioner}, seed=seed_)
+    fds = FederatedDataset(dataset=dataset, partitioners={"train": partitioner}, seed=seed)
 
     datasets = []
     idx = 0
@@ -47,8 +42,6 @@ def partition_dataset(dataset, partitioner, test_percentage, transforms, seed):
         tpl = dataset.train_test_split(test_size=test_percentage, seed=seed)
         trainset = tpl["train"]
         testset = tpl["test"]
-        trainset.applied_data_transforms = transforms
-        testset.applied_data_transforms = transforms
         datasets.append((trainset, testset))
         idx += 1
     a, b = 0, 0

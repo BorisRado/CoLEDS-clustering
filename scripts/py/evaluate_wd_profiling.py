@@ -6,7 +6,7 @@ import hydra
 from hydra.utils import instantiate
 from hydra.core.config_store import OmegaConf
 
-from src.data.utils import get_datasets_from_cfg, to_pytorch_tensor_dataset
+from src.data.utils import get_datasets_from_cfg
 from src.utils.evaluation import get_evaluation_fn
 from src.utils.stochasticity import set_seed
 from src.utils.wandb import init_wandb, finish_wandb, run_exists_already
@@ -24,13 +24,14 @@ def run(cfg):
         return
     experiment_folder = get_exp_folder()
     cfg.experiment.folder = str(experiment_folder)
+    if "dry_run" in cfg:
+        assert cfg.dry_run
+        return
     print(OmegaConf.to_yaml(cfg))
     init_wandb(cfg)
 
     set_seed(cfg.general.seed)
     trainsets, valsets = get_datasets_from_cfg(cfg)
-    trainsets = to_pytorch_tensor_dataset(trainsets, n_classes=cfg.dataset.n_classes)
-    valsets = to_pytorch_tensor_dataset(valsets, n_classes=cfg.dataset.n_classes)
 
     model = instantiate(cfg.model)
 
@@ -50,7 +51,7 @@ def run(cfg):
     for idx in range(cfg.general.eval_iterations):
         print(f"Best correlation: {best_correlation}")
 
-        model = train_flower(
+        model, _ = train_flower(
             model,
             client_fn_kwargs={
                 "trainsets": trainsets,

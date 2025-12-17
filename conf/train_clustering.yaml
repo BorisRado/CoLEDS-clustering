@@ -1,6 +1,4 @@
 defaults:
-  - partitioning: dirichlet
-  - dataset: mnist
   - model: simple_net
   - optimizer: adam
   - _self_
@@ -12,9 +10,19 @@ train_config:
   n_clusters: ...
   proximal_mu: -1
   fraction_fit: 0.2
+  num_epochs: 150
 final_evaluation:
   n_holdout_clients: 500
+
+strategy:
+  fraction_fit: 0.1
+  fraction_evaluate: 0.2
+  evaluation_frequency: 5
 
 wandb:
   log_to_wandb: false
   loggin_keys: []
+hydra:
+  run:
+    dir: ${folder}
+  output_subdir: ${folder}/.clustering_${train_config.n_clusters}

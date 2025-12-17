@@ -2,6 +2,7 @@ dataset_name: synthetic
 input_shape: [3, 32, 32]
 n_classes: 4
 test_percentage: 0.2
+horizontal_flipping: true
 p: 0.5
-dataset_size: 20
+dataset_size: 50
 n_datasets: 600

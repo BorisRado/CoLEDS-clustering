@@ -1,3 +1,5 @@
+import os
+import shutil
 from collections import OrderedDict
 
 import wandb
@@ -15,9 +17,11 @@ def get_strategy_with_chechpoint(base_strategy, file, model):
     class CustomStrategy(base_strategy):
         def __init__(self, evaluation_frequency, *args, **kwargs):
             super().__init__(*args, **kwargs)
+            assert file.endswith(".pth")
             self.accuracies = []
             self.converged = False
             self.evaluation_frequency = evaluation_frequency
+            self.max_accuracy = -1
 
         def configure_fit(self, *args, **kwargs):
             if self.converged:
@@ -60,8 +64,12 @@ def get_strategy_with_chechpoint(base_strategy, file, model):
             if wandb.run is not None:
                 wandb.log({"avg_accuracy": res[0]})
             self.accuracies.append(res[0])
-            # if _has_converged_plateau(self.accuracies):
-            #     self.converged = True
+            if res[0] > self.max_accuracy:
+                self.max_accuracy = res[0]
+                base, ext = os.path.splitext(file)
+                best_file = f"{base}_best{ext}"
+                shutil.copyfile(file, best_file)
+                print(f"Saved new best model to {best_file}")
             return res
 
     return CustomStrategy

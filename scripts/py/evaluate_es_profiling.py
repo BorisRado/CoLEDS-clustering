@@ -29,8 +29,6 @@ def run(cfg):
 
     set_seed(cfg.general.seed)
     trainsets, valsets = get_datasets_from_cfg(cfg)
-    trainsets = to_pytorch_tensor_dataset(trainsets, n_classes=cfg.dataset.n_classes)
-    valsets = to_pytorch_tensor_dataset(valsets, n_classes=cfg.dataset.n_classes)
 
     model = instantiate(cfg.model)
     assert "encoder" in model
@@ -58,7 +56,7 @@ def run(cfg):
     for idx in range(cfg.general.eval_iterations):
         print(f"Best correlation: {best_correlation}")
 
-        model = train_flower(
+        model, _ = train_flower(
             model,
             client_fn_kwargs={
                 "trainsets": trainsets,
@@ -69,7 +67,7 @@ def run(cfg):
             optim_kwargs=OmegaConf.to_container(cfg.optimizer),
             n_rounds=cfg.general.epochs_per_iteration,
             experiment_folder=experiment_folder,
-            strategy_kwargs={},
+            strategy_kwargs=OmegaConf.to_container(cfg.strategy),
             seed=cfg.general.seed,
         )
         tmp_corr = eval_fn(

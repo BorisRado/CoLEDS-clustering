@@ -20,13 +20,9 @@ def eval_fn(profiler, trainsets, valsets, experiment_folder, iter, **kwargs):
 
 
 def get_evaluation_fn(cfg, trainsets, valsets, experiment_folder):
-    if cfg.dataset.dataset_name != "synthetic":
-        eval_fn_ = partial(
-            eval_fn,
-            trainsets=trainsets,
-            valsets=valsets,
-            experiment_folder=experiment_folder,
-        )
-    else:
-        eval_fn_ = lambda *args, **kwargs: 1
-    return eval_fn_
+    return partial(
+        eval_fn,
+        trainsets=trainsets,
+        valsets=valsets,
+        experiment_folder=experiment_folder,
+    )

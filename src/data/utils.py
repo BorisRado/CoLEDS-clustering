@@ -9,9 +9,8 @@ from torch.utils.data import DataLoader, RandomSampler, Subset, TensorDataset
 from hydra.utils import instantiate
 
 from src.utils.stochasticity import TempRng
-from src.data.synthetic_dataset import generate_dataset
 from src.data.partitioning import partition_dataset, train_test_split
-from src.data.synthetic_dataset import generate_synthetic_datasets
+from src.data.synthetic_dataset import generate_synthetic_dataset
 import torch.multiprocessing as mp
 
 
@@ -54,31 +53,37 @@ def get_label_distribution(dataset, n_classes):
 
 def get_datasets_from_cfg(cfg):
     if cfg.dataset.dataset_name == "synthetic":
-        datasets = generate_synthetic_datasets(
-            cfg.dataset.n_datasets,
-            cfg.dataset.dataset_size,
-            p=cfg.dataset.p
-        )
-        datasets = [
-            train_test_split(ds, cfg.dataset.test_percentage, cfg.general.seed)
-            for ds in datasets
-        ]
-        trainsets, valsets = zip(*datasets)
-        return list(trainsets), list(valsets)
-
-    if cfg.dataset.dataset_name == "femnist":
-        datasets = []
-        for idx in range(3597):
-            ds = torch.load(f"/home/radovib/femnist/{idx}.pth")
-            ds.set_format("torch")
-            ds.info.dataset_name = "femnist"
-            datasets.append(ds)
-        datasets = [
-            train_test_split(ds, cfg.dataset.test_percentage, cfg.general.seed)
-            for ds in datasets
-        ]
-        trainsets, valsets = zip(*datasets)
-        return list(trainsets), list(valsets)
+        trainsets, valsets = [], []
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        for _ in range(cfg.dataset.n_datasets):
+            ds = generate_synthetic_dataset(
+                cfg.dataset.dataset_size,
+                p=cfg.dataset.p,
+                image_resolution=tuple(cfg.dataset.input_shape[1:])
+            )
+            trainset, valset = split_tensor_dataset(ds, device)
+            trainset.dataset_name, valset.dataset_name = "femnist", "femnist"
+            trainset._label_distribution = \
+                torch.from_numpy(get_label_distribution(trainset, cfg.dataset.n_classes))
+            valset._label_distribution = \
+                torch.from_numpy(get_label_distribution(valset, cfg.dataset.n_classes))
+            trainsets.append(trainset)
+            valsets.append(valset)
+        return trainsets, valsets
+    elif cfg.dataset.dataset_name == "femnist":
+        datasets = load_femnist_datasets()
+        trainsets, valsets = [], []
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        for dataset in datasets:
+            trainset, valset = split_tensor_dataset(dataset, device)
+            trainset.dataset_name, valset.dataset_name = "femnist", "femnist"
+            trainset._label_distribution = \
+                torch.from_numpy(get_label_distribution(trainset, cfg.dataset.n_classes))
+            valset._label_distribution = \
+                torch.from_numpy(get_label_distribution(valset, cfg.dataset.n_classes))
+            trainsets.append(trainset)
+            valsets.append(valset)
+        return trainsets, valsets
 
     partitioner = instantiate(cfg.partitioning)
 
@@ -92,40 +97,9 @@ def get_datasets_from_cfg(cfg):
     )
 
     trainsets, valsets = zip(*datasets)
+    trainsets = to_pytorch_tensor_dataset(trainsets, n_classes=cfg.dataset.n_classes)
+    valsets = to_pytorch_tensor_dataset(valsets, n_classes=cfg.dataset.n_classes)
     return trainsets, valsets
-
-
-def get_holdout_dataset(config):
-    dataset_name = config.dataset_name
-    if config.dataset_name == "synthetic":
-        with TempRng(58):
-            dataset = generate_dataset(50, -1.0, dictionary=False)
-        return dataset
-
-    holdout_kwargs = {
-        "root": Path(torch.hub.get_dir()) / "datasets",
-        "train": False,
-        "download": False,
-        "transform": instantiate(config.transforms)
-    }
-
-    holdout_dataset = {
-        "cifar10": DS.CIFAR10,
-        "cifar100": DS.CIFAR100,
-        "mnist": DS.MNIST,
-        "fashion_mnist": DS.FashionMNIST
-    }[dataset_name](**holdout_kwargs)
-
-    # load it into memory
-    imgs, labels = [], []
-    dl = DataLoader(holdout_dataset, batch_size=16)
-    for b in dl:
-        imgs.append(b[0])
-        labels.append(b[1])
-    imgs = torch.vstack(imgs)
-    labels = torch.hstack(labels)
-    holdout_dataset = TensorDataset(imgs, labels)
-    return holdout_dataset
 
 
 def get_dataset_target_indices(dataset):
@@ -178,7 +152,6 @@ def _process_dataset(ds, n_classes):
         idx += batch_size
 
     tensor_ds = TensorDataset(imgs, labels)
-    tensor_ds.applied_data_transform = ds.applied_data_transforms
     tensor_ds.dataset_name = ds.info.dataset_name
     tensor_ds._label_distribution = label_distribution
     return tensor_ds
@@ -195,12 +168,11 @@ def to_pytorch_tensor_dataset(datasets, n_classes):
     cuda_datasets = []
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    for imgs, labels, label_dist, transforms, dataset_name in results:
+    for imgs, labels, label_dist, dataset_name in results:
         imgs = imgs.to(device, non_blocking=True)
         labels = labels.to(device, non_blocking=True)
 
         tensor_ds = TensorDataset(imgs, labels)
-        tensor_ds.applied_data_transform = transforms
         tensor_ds.dataset_name = dataset_name
         tensor_ds._label_distribution = label_dist
         cuda_datasets.append(tensor_ds)
@@ -244,4 +216,34 @@ def _process_dataset_cpu(ds, n_classes):
             label_distribution[l] += 1
         idx += batch_size
 
-    return imgs, labels, label_distribution, ds.applied_data_transforms, ds.info.dataset_name
+    return imgs, labels, label_distribution, ds.info.dataset_name
+
+
+def load_femnist_datasets():
+    torch.serialization.add_safe_globals([TensorDataset])
+    datasets = []
+    for idx in range(3597):
+        ds = torch.load(f"data/raw/femnist/{idx}.pth", weights_only=True)
+        ds._client_idx = idx
+        datasets.append(ds)
+    return datasets
+
+
+def split_tensor_dataset(dataset: TensorDataset, device: torch.device):
+    tensors = dataset.tensors
+    dataset_len = len(dataset)
+    validation_size = int(np.ceil(dataset_len * 0.2))
+
+    # generate splitting
+    perm = torch.randperm(dataset_len)
+    val_idx = perm[:validation_size]
+    train_idx = perm[validation_size:]
+
+    # create new tensor datasets
+    train_tensors = tuple(tensor[train_idx].to(device, non_blocking=True) for tensor in tensors)
+    val_tensors = tuple(tensor[val_idx].to(device, non_blocking=True) for tensor in tensors)
+    trainset, valset = TensorDataset(*train_tensors), TensorDataset(*val_tensors)
+    if hasattr(dataset, "_client_idx"):
+        trainset._client_idx = dataset._client_idx
+        valset._client_idx = dataset._client_idx
+    return trainset, valset

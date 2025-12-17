@@ -27,8 +27,6 @@ def run(cfg):
     set_seed(cfg.general.seed)
 
     trainsets, valsets = get_datasets_from_cfg(cfg)
-    trainsets = to_pytorch_tensor_dataset(trainsets, n_classes=cfg.dataset.n_classes)
-    valsets = to_pytorch_tensor_dataset(valsets, n_classes=cfg.dataset.n_classes)
 
     model = instantiate(cfg.model)
 
@@ -50,7 +48,7 @@ def run(cfg):
     print(f"Correlation: {best_correlation}")
 
     for _ in range(cfg.general.eval_iterations):
-        model = train_flower(
+        model, _ = train_flower(
             model,
             client_fn_kwargs={
                 "trainsets": trainsets,

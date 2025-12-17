@@ -10,7 +10,6 @@ from dotenv import load_dotenv
 from src.data.utils import (
     get_dataloaders_with_replacement,
     get_datasets_from_cfg,
-    to_pytorch_tensor_dataset
 )
 from src.utils.stochasticity import set_seed, TempRng
 from src.profiler.single_model_profiler import SingleModelProfiler
@@ -29,8 +28,6 @@ the similarity of dataset embeddings and the similarity of the dataset labels ch
 def run_all(cfg):
     set_seed(cfg.general.seed)
     trainsets, valsets = get_datasets_from_cfg(cfg)
-    trainsets = to_pytorch_tensor_dataset(trainsets, n_classes=cfg.dataset.n_classes)
-    valsets = to_pytorch_tensor_dataset(valsets, n_classes=cfg.dataset.n_classes)
     for single_cfg in iterate_configs(cfg, multirun_columns=[
         "train_config.num_client_updates",
         "train_config.temperature",
@@ -92,16 +89,12 @@ def run(cfg, trainsets, valsets):
         print(f"Got correlation: {tmp_corr}")
         all_correlations.append(tmp_corr)
 
-        if cfg.dataset.dataset_name == "synthetic":
-            torch.save(model.state_dict(), experiment_folder / "cem.pth")
-            break
-
         scheduler.step()
         if tmp_corr > best_correlation:
             best_correlation = tmp_corr
             rounds_without_improvement = 0
             if cfg.experiment.save_model:
-                torch.save(model.state_dict(), experiment_folder / "cem.pth")
+                torch.save(model.state_dict(), experiment_folder / "model_weights.pth")
         else:
             rounds_without_improvement += 1
 

@@ -1,3 +1,4 @@
+import os
 from copy import deepcopy
 
 import ray
@@ -44,8 +45,10 @@ def train_flower(
     strategy_kwargs,
     seed,
     model_save_name="fl_model.pth",
+    model_return_strategy="latest",
 ):
     assert set(client_fn_kwargs.keys()) == {"trainsets", "valsets", "batch_size", "train_fn"}
+    assert model_return_strategy in {"latest", "best_accuracy"}
 
     trainsets = client_fn_kwargs.pop("trainsets")
     valsets = client_fn_kwargs.pop("valsets")
@@ -72,7 +75,7 @@ def train_flower(
             train_fn=train_fn
         ).to_client()
 
-    file = experiment_folder / model_save_name
+    file = str(experiment_folder / model_save_name)
     strategy_clz = get_strategy_with_chechpoint(FedAvg, file, deepcopy(model))
 
     add_defaults_to_strategy_kwargs(strategy_kwargs)
@@ -81,12 +84,12 @@ def train_flower(
         on_fit_config_fn=lambda *args, **kwargs: optim_kwargs
     )
 
-    cr = {"num_cpus": 8}
+    cr = {"num_cpus": 4}
     if torch.cuda.is_available():
-        cr["num_gpus"] = 1.0
+        cr["num_gpus"] = 0.5
 
     set_seed(seed)
-    start_simulation(
+    history = start_simulation(
         client_fn=client_fn,
         num_clients=len(trainsets),
         config=ServerConfig(num_rounds=n_rounds),
@@ -95,5 +98,11 @@ def train_flower(
         keep_initialised=True
     )
     # history.losses_distributed
-    model.load_state_dict(torch.load(file, weights_only=True))
-    return model
+    if model_return_strategy == "latest":
+        weights = torch.load(file, weights_only=True)
+    else:
+        base, ext = os.path.splitext(file)
+        best_file = f"{base}_best{ext}"
+        weights = torch.load(best_file, weights_only=True)
+    model.load_state_dict(weights)
+    return model, history

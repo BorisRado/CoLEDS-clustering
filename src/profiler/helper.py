@@ -1,54 +1,61 @@
+from pathlib import Path
+
 import torch
 from hydra.utils import instantiate
 from hydra.core.config_store import OmegaConf
 
 from src.utils.stochasticity import TempRng
 from src.profiler.single_model_profiler import SingleModelProfiler
+from src.profiler.es_profiler import EmbeddingSpaceProfiler
+from src.profiler.wd_profiler import WeightDiffProfiler
 
 
-def load_cem(cem_config, cem_folder, **kwargs):
-    raise Exception("Needs to be re-implemented!!")
-    n_classes = cem_config.dataset.n_classes
 
-    if "cem" in cem_config:
-        # weight difference
-        cem_name = cem_config["cem"]["_target_"].split(".")[-1]
-        print(f"Loading {cem_name}")
-        if cem_name == "WeightDiffCEM":
-            with TempRng(cem_config.general.seed):
-                model = instantiate(
-                    cem_config.model,
-                    input_shape=cem_config.dataset.input_shape,
-                    n_classes=n_classes
-                )
-            cem = instantiate(
-                cem_config.cem,
-                init_model=model,
-                optim_kwargs=OmegaConf.to_container(cem_config.optimizer),
-            )
-        elif cem_name == "LogitCEM":
-            with TempRng(cem_config.general.seed):
-                model = instantiate(
-                    cem_config.model,
-                    input_shape=cem_config.dataset.input_shape,
-                    n_classes=n_classes
-                )
-            cem = instantiate(
-                cem_config.cem,
-                init_model=model,
-                optim_kwargs=OmegaConf.to_container(cem_config.optimizer),
-                **kwargs,
-            )
+def load_coleds_profiler(profiler_config, folder):
+    coleds_model = instantiate(profiler_config.model)
+    coleds_model.load_state_dict(
+        torch.load(folder / "model_weights.pth"), strict=True
+    )
+    return SingleModelProfiler(coleds_model)
 
-        # random & label
-        elif cem_name in {"RandomCEM", "LabelCEM"}:
-            cem = instantiate(cem_config["cem"], n_classes=n_classes)
-        else:
-            raise Exception(str(cem_config))
-    else:
-        # is contrastive learning model
-        model = instantiate(cem_config.model, input_shape=cem_config.dataset.input_shape)
-        if cem_folder is not None:
-            model.load_state_dict(torch.load(cem_folder / "cem.pth"))
-        cem = SingleModelProfiler(model)
-    return cem
+
+def load_es_profiler(profiler_config, folder):
+    encoder_model = instantiate(profiler_config.model)
+    encoder_model.load_state_dict(
+        torch.load(folder / "fl_model.pth"), strict=True
+    )
+    return EmbeddingSpaceProfiler(
+        model=encoder_model,
+        statistics=OmegaConf.to_container(profiler_config.profiling.statistics)
+    )
+
+
+def load_wd_profiler(profiler_config, folder):
+    encoder_model = instantiate(profiler_config.model)
+    fl_model_path = folder / "fl_model.pth"
+    if fl_model_path.exists():
+        print("Loading pre-existing weights")
+        encoder_model.load_state_dict(torch.load(fl_model_path), strict=True)
+    return WeightDiffProfiler(
+        init_model=encoder_model,
+        **OmegaConf.to_container(profiler_config.profiling),
+        optim_kwargs=OmegaConf.to_container(profiler_config.optimizer),
+    )
+
+
+def load_profiler(cfg):
+    folder = Path(cfg.folder)
+    profiler_config = OmegaConf.load(folder / ".hydra" / "config.yaml")
+    assert profiler_config.dataset.dataset_name in {"femnist", "synthetic"}
+
+    profiler_type = profiler_config["profiler"]
+    if profiler_type == "coleds":
+        profiler = load_coleds_profiler(profiler_config, folder)
+
+    elif profiler_type == "es":
+        profiler = load_es_profiler(profiler_config, folder)
+
+    elif profiler_type == "wd":
+        profiler = load_wd_profiler(profiler_config, folder)
+
+    return profiler, folder

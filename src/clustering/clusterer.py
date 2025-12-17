@@ -19,15 +19,10 @@ class Clusterer:
             emb = self.profiler.get_embedding(dataset)
         return preprocessing.normalize(emb)
 
-    def init_kmeans_model(self, n_clusters, partition="train"):
+    def init_kmeans_model(self, n_clusters):
+        assert "train" in self.init_embeddings
         self.kmeans = KMeans(n_clusters=n_clusters, random_state=10)
-        try:
-            preds = self.kmeans.fit_predict(self.init_embeddings[partition])
-        except Exception as e:
-            print("Error in KMeans fit_predict", e)
-            print("Trying to convert embeddings to double precision")
-            preds = self.kmeans.fit_predict(self.init_embeddings[partition].astype(np.float64))
-            print("Success with double precision")
+        preds = self.kmeans.fit_predict(self.init_embeddings["train"])
         return preds
 
     def predict_client_cluster(self, client_dataset):
