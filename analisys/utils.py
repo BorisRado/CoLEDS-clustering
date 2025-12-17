@@ -243,6 +243,8 @@ def set_matplotlib_configuration(fontsize=18):
 
     cmap = sns.color_palette("colorblind", 4)
     mpl.rcParams.update({
+        "figure.dpi": 400, # so it's bigger when calling plt.show()
+
         # LaTeX text rendering
         "text.usetex": True,
         "font.family": "serif",
@@ -269,8 +271,16 @@ def set_matplotlib_configuration(fontsize=18):
 
         # Figure-level text
         "figure.titlesize": fontsize,
+
+        # Super (figure-level) axis labels
+        "figure.labelsize": fontsize,
     })
-    return {
-        "capsize": 5,
-        "color": [cmap[i] for i in range(4)]
+    savefig_kwargs = {
+        "bbox_inches": "tight",
+        "format": "pdf",
+        "pad_inches": 0.,
     }
+    return {
+        "error_kw": {"capthick": 0.8, "elinewidth": 0.8, "capsize": 2},
+        "color": [cmap[i] for i in range(4)]
+    }, savefig_kwargs
