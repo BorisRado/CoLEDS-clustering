@@ -8,6 +8,7 @@ slurm/history
 .wandb_cache
 .tmp_cache
 .ipynb_checkpoints
+.DS_Store
 
 *.pdf
 *.err

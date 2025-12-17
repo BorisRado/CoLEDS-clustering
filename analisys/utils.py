@@ -6,6 +6,9 @@ import wandb
 import pandas as pd
 from tqdm import tqdm
 from dotenv import load_dotenv
+import seaborn as sns
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 
 
 COLEDS_CONFIG_TO_SHORT_NAME = {
@@ -81,21 +84,26 @@ def download_all_data():
         _ = get_run_dataframe(run, dry=True)
 
 
-def get_coleds_dataframe(refresh=False):
+def get_coleds_dataframe(refresh=False, number_of_seeds=None):
     save_df_path = "data/all_coleds_best_correlations.csv"
     if not refresh:
-        return pd.read_csv(save_df_path)
+        try:
+            return pd.read_csv(save_df_path)
+        except FileNotFoundError:
+            print("Could not load data. Re-downloading")
+            return get_coleds_dataframe(refresh=True, number_of_seeds=number_of_seeds)
+
     runs = get_project_runs()
     data = []
     for run in runs:
         config = run.config
-        if "train_config.fraction_fit" not in config:
+        if config["profiler"] != "coleds":
             continue
         df = get_run_dataframe(run)
         record = {
             v: config[k] for k, v in COLEDS_CONFIG_TO_SHORT_NAME.items()
         }
-        record["max_correlation"] = df["correlation"].max().item()
+        record["max_correlation"] = df["correlation"].max()
         data.append(record)
     df = pd.DataFrame(data)
 
@@ -103,12 +111,102 @@ def get_coleds_dataframe(refresh=False):
     df["model"] = df["model"].map(MODEL_NAME_MAPPING)
 
     # sanity check
-    # assert (df.groupby(
-    #     ["dataset", "model", "batch_size", "fraction_fit", "num_client_updates", "temperature"]
-    # ).size() == 3).all()
+    if number_of_seeds is not None:
+        assert (df.groupby(
+            ["dataset", "model", "batch_size", "fraction_fit", "num_client_updates", "temperature"]
+        ).size() == number_of_seeds).all()
 
     df.to_csv(save_df_path, index=False)
     return df
+
+
+def get_es_dataframe(refresh=False, number_of_seeds=None):
+    save_df_path = "data/all_es_best_correlations.csv"
+    if not refresh:
+        try:
+            return pd.read_csv(save_df_path)
+        except FileNotFoundError:
+            print("Could not load data. Re-downloading")
+            return get_es_dataframe(refresh=True, number_of_seeds=number_of_seeds)
+
+    runs = get_project_runs()
+    data = []
+    for run in runs:
+        config = run.config
+        if config["profiler"] != "es":
+            continue
+        df = get_run_dataframe(run)
+        model_name = "AutoEncoder" \
+            if config["model._target_"].endswith("VariationalAutoencoder") \
+                else "Classifier"
+        dataset = config["dataset.dataset_name"]
+        record = {
+            "model": model_name,
+            "dataset": dataset,
+            "max_correlation": df["correlation"].max()
+        }
+        data.append(record)
+    df = pd.DataFrame(data)
+    df["dataset"] = df["dataset"].map(DATASET_NAME_MAPPING)
+
+    # sanity check
+    if number_of_seeds is not None:
+        assert (df.groupby(["dataset", "model"]).size() == number_of_seeds).all()
+
+    df.to_csv(save_df_path, index=False)
+    return df
+
+
+def get_wd_dataframe(refresh=False, number_of_seeds=None):
+    save_df_path = "data/all_wd_best_correlations.csv"
+    if not refresh:
+        try:
+            return pd.read_csv(save_df_path)
+        except FileNotFoundError:
+            print("Could not load data. Re-downloading")
+            return get_wd_dataframe(refresh=True, number_of_seeds=number_of_seeds)
+
+    runs = get_project_runs()
+    data = []
+    for run in runs:
+        config = run.config
+        if config["profiler"] != "wd":
+            continue
+        df = get_run_dataframe(run)
+        dataset = config["dataset.dataset_name"]
+        record = {
+            "dataset": dataset,
+            "max_correlation": df["correlation"].max()
+        }
+        data.append(record)
+    df = pd.DataFrame(data)
+    df["dataset"] = df["dataset"].map(DATASET_NAME_MAPPING)
+
+    # sanity check
+    if number_of_seeds is not None:
+        assert (df.groupby("dataset").size() == number_of_seeds).all()
+
+    df.to_csv(save_df_path, index=False)
+    return df
+
+
+def get_wd_correlations_late_in_training():
+    runs = get_project_runs()
+    wd_runs = [r for r in runs if r.config["profiler"] == "wd"]
+
+    data = []
+    for r in wd_runs:
+        df = get_run_dataframe(r)
+        df = df[df["table"].isna()].reset_index(drop=True)
+        correlation = df[~df["correlation"].isna()].reset_index(drop=True).iloc[-1]["correlation"]
+        data.append({
+            "dataset": r.config["dataset.dataset_name"],
+            "max_correlation": correlation
+        })
+    df = pd.DataFrame(data)
+    df["dataset"] = df["dataset"].map(DATASET_NAME_MAPPING)
+    wddf_late_training = df.groupby("dataset")["max_correlation"].agg(["mean", "std"])
+    return wddf_late_training
 
 
 def filter_df(df, filters):
@@ -125,10 +223,54 @@ def filter_df(df, filters):
     return df.drop(remove_keys, axis=1)
 
 
-def plot_with_std(df, index, columns, ax, index_order=None, **kwargs):
+def plot_with_std(df, index, columns, ax, index_order=None, column_order=None, **kwargs):
     df = df.pivot(index=index, columns=columns, values=["mean", "std"]).copy()
     min_value = df["mean"].min().min()
     max_value = df["mean"].max().max()
     if index_order is not None:
         df = df.loc[index_order]
+    if column_order is not None:
+        # reorder columns by the second level (the metric names) to match column_order
+        # this reorders both "mean" and "std" blocks accordingly
+        df = df.reindex(columns=column_order, level=1)
     df["mean"].plot(kind="bar", yerr=df["std"], rot=0, ylim=(min_value-0.02, max_value+0.02), ax=ax, **kwargs)
+
+
+def set_matplotlib_configuration(fontsize=18):
+
+    # matplotlib configuration
+    plt.style.use("seaborn-v0_8-whitegrid")
+
+    cmap = sns.color_palette("colorblind", 4)
+    mpl.rcParams.update({
+        # LaTeX text rendering
+        "text.usetex": True,
+        "font.family": "serif",
+        "font.serif": ["Latin Modern Roman"],
+        "text.latex.preamble": r"""
+            \usepackage{lmodern}
+            \usepackage[T1]{fontenc}
+        """,
+
+        # Base font size
+        "font.size": fontsize,
+
+        # Axes
+        "axes.titlesize": fontsize,
+        "axes.labelsize": fontsize,
+
+        # Ticks
+        "xtick.labelsize": fontsize,
+        "ytick.labelsize": fontsize,
+
+        # Legends
+        "legend.fontsize": fontsize,
+        "legend.title_fontsize": fontsize,
+
+        # Figure-level text
+        "figure.titlesize": fontsize,
+    })
+    return {
+        "capsize": 5,
+        "color": [cmap[i] for i in range(4)]
+    }
