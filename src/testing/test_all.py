@@ -8,14 +8,14 @@ from src.clustering.clusterer import Clusterer
 
 
 
-def test_all(cem, trainsets, valsets, max_clusters=20, **kwargs):
+def test_all(profiler, trainsets, valsets, max_clusters=20, **kwargs):
     datasets = {
         "train": trainsets,
         "val": valsets,
     }
 
     gt_label_dist = np.vstack([vs._label_distribution for vs in valsets])
-    clusterer = Clusterer(cem, datasets)
+    clusterer = Clusterer(profiler, datasets)
     results = {
         # "silhouette": get_silhouette_scores(clusterer.init_embeddings["train"], max_clusters=max_clusters),
         "correlation": compute_correlation(gt_label_dist, clusterer.init_embeddings["val"]),

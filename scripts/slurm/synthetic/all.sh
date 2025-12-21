@@ -74,6 +74,9 @@ srun python scripts/py/evaluate_wd_profiling.py $COMMON_ARGS \
     general.eval_iterations=1 \
     general.epochs_per_iteration=50
 
+# LOGIT PROFILING
+srun python scripts/py/evaluate_logit_profiling.py $COMMON_ARGS hydra.run.dir=$BASE_FOLDER/logit +dry_run=true
+
 
 echo ""
 echo ""
@@ -95,5 +98,6 @@ srun python scripts/py/visualize_synthetic_dataset_profiles.py $VISUAL_GENERATIO
 srun python scripts/py/visualize_synthetic_dataset_profiles.py $VISUAL_GENERATION_ARGS folder=$BASE_FOLDER/esc_clf
 srun python scripts/py/visualize_synthetic_dataset_profiles.py $VISUAL_GENERATION_ARGS folder=$BASE_FOLDER/wd
 srun python scripts/py/visualize_synthetic_dataset_profiles.py $VISUAL_GENERATION_ARGS folder=$BASE_FOLDER/wd_training
+srun python scripts/py/visualize_synthetic_dataset_profiles.py $VISUAL_GENERATION_ARGS folder=$BASE_FOLDER/logit
 
 wait

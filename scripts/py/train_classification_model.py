@@ -59,7 +59,8 @@ def run(cfg):
         strategy_kwargs=OmegaConf.to_container(cfg.strategy),
         model_save_name=f"model_weights.pth",
         seed=cfg.general.seed,
-        model_return_strategy="best_accuracy"
+        model_return_strategy="best_accuracy",
+        client_resources=OmegaConf.to_container(cfg.client_resources),
     )
 
     all_metrics = {}

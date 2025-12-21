@@ -5,6 +5,7 @@ defaults:
   - optimizer: adam  # used both for FL training and getting weight difference
   - model: simple_net
   - _self_
+profiler: logit
 general:
   seed: 10
   eval_iterations: 4
@@ -12,13 +13,19 @@ general:
 profiling:
   ft_epochs: 1
   batch_size: 32
-  public_dataset_size: 100
+  public_dataset_size: 1000
 train_config:
   batch_size: 32 # used both for FL training and getting weight difference
   train_epochs: 10 # evaluate the CEM after trianing the model this many epochs
 wandb:
   log_to_wandb: false
   loggin_keys: []
+client_resources:
+  num_cpus: 2
+  num_gpus: 0.125
 experiment:
   folder: ...
   name: ...
+hydra:
+  run:
+    dir: outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}/${uuid:}

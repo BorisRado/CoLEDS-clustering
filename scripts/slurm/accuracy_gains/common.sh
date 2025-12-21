@@ -3,11 +3,13 @@
 mamba activate slower
 
 export PYTHONPATH=$PYTHONPATH:.
+export PYTHONUNBUFFERED=1
 
-SEEDS=(4 8 15 16 23) # 4 8 15 16 23 42
+SEEDS=(4 8 15) # 4 8 15 16 23 42
+TEST_NUM_CLUSTERS=(2 4 8 16 32 64)
 
 DATASET_ARGS="dataset=femnist partitioning=natural"
-HOME_FOLDER="outputs/accuracy_gains"
+HOME_FOLDER="outputs/femnist_accuracy_gains"
 
 # configuration for model training with clustering
 CLASSIFICATION_MODEL="simple_net"
@@ -16,8 +18,8 @@ BATCH_SIZE=32
 PROXIMAL_MU=0.001
 EPOCHS=250
 NUM_HOLDOUT_CLIENTS=1097
-FRACTION_FIT=0.04
-FRACTION_EVALUATE=0.4
+FRACTION_FIT=0.05
+FRACTION_EVALUATE=1.0
 EVALUATION_FREQUENCY=5
 
 CLUSTERING_MODEL_TRAINING_ARGS="
@@ -30,4 +32,11 @@ CLUSTERING_MODEL_TRAINING_ARGS="
     strategy.fraction_fit=${FRACTION_FIT}
     strategy.fraction_evaluate=${FRACTION_EVALUATE}
     strategy.evaluation_frequency=${EVALUATION_FREQUENCY}
+    client_resources.num_cpus=2
+    client_resources.num_gpus=0.125
 "
+
+# Helper function to run commands asynchronously with srun
+run_bg() {
+    srun -Q --ntasks=1 "$@" &
+}

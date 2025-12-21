@@ -3,6 +3,7 @@
 mamba activate slower
 
 export PYTHONPATH=$PYTHONPATH:.
+export PYTHONUNBUFFERED=1
 export HF_DATASETS_IN_MEMORY_MAX_SIZE=8589934592
 export HF_DATASETS_CACHE="/mnt/scratch/radovib"
 
@@ -17,4 +18,9 @@ set_partition_by() {
     else
         partition_by="label"
     fi
+}
+
+# Helper function to run commands asynchronously with srun
+run_bg() {
+    srun -Q --ntasks=1 "$@" &
 }

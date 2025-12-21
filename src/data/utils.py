@@ -3,15 +3,14 @@ from pathlib import Path
 
 import numpy as np
 import torch
-import torchvision.transforms as T
-import torchvision.datasets as DS
+import torch.multiprocessing as mp
 from torch.utils.data import DataLoader, RandomSampler, Subset, TensorDataset
 from hydra.utils import instantiate
+from datasets import load_dataset
 
 from src.utils.stochasticity import TempRng
-from src.data.partitioning import partition_dataset, train_test_split
+from src.data.partitioning import partition_dataset
 from src.data.synthetic_dataset import generate_synthetic_dataset
-import torch.multiprocessing as mp
 
 
 def get_dataloaders_with_replacement(datasets, batch_size, runtime_horizontal_flipping):
@@ -247,3 +246,33 @@ def split_tensor_dataset(dataset: TensorDataset, device: torch.device):
         trainset._client_idx = dataset._client_idx
         valset._client_idx = dataset._client_idx
     return trainset, valset
+
+
+
+def get_holdout_dataset(config):
+    dataset_name = config.dataset_name
+    if config.dataset_name == "synthetic":
+        with TempRng(58):
+            dataset = generate_synthetic_dataset(config.dataset_size, p=0.25, image_resolution=config.input_shape)
+        return dataset
+
+    hf_dataset = load_dataset(dataset_name, split="test")
+    transform = instantiate(config.transforms)
+    if "image" in hf_dataset.column_names:
+        hf_dataset = hf_dataset.rename_column("image", "img")
+    if "fine_label" in hf_dataset.column_names:
+        hf_dataset = hf_dataset.rename_column("fine_label", "label")
+    assert "img" in hf_dataset.column_names, f"hf_dataset must contain an 'img' column, {dataset_name} {hf_dataset.column_names}"
+    assert "label" in hf_dataset.column_names, f"hf_dataset must contain an 'label' column, {dataset_name} {hf_dataset.column_names}"
+
+    # load it into memory
+    imgs, labels = [], []
+    for item in hf_dataset:
+        img = transform(item["img"]).unsqueeze(0)
+        imgs.append(img)
+        labels.append(item["label"])
+    imgs = torch.vstack(imgs)
+    labels = torch.tensor(labels, dtype=torch.long)
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    holdout_dataset = TensorDataset(imgs.to(device), labels.to(device))
+    return holdout_dataset

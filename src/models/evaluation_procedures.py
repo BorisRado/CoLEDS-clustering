@@ -43,11 +43,14 @@ def test_ae(model, testloader):
     return recon_loss.item() / len(testloader.dataset)
 
 
-def get_clustering_accuracy(models_dict, clusterer, datasets):
+def get_clustering_accuracy(models_dict, clusterer, datasets, clusters=None):
     out = {"dataset_size": [], "accuracy": [], "cluster_idx": [], "client_idx": []}
 
-    for dataset in datasets:
-        pred_cluster = clusterer.predict_client_cluster(dataset)
+    for idx, dataset in enumerate(datasets):
+        if clusters is None:
+            pred_cluster = clusterer.predict_client_cluster(dataset)
+        else:
+            pred_cluster = clusters[idx]
 
         dataloader = DataLoader(dataset, batch_size=128)
 

@@ -1,3 +1,4 @@
+import uuid
 from functools import partial
 from dotenv import load_dotenv
 
@@ -6,7 +7,7 @@ from hydra.utils import instantiate
 from hydra.core.config_store import OmegaConf
 import torch
 
-from src.data.utils import get_datasets_from_cfg, to_pytorch_tensor_dataset, get_holdout_dataset
+from src.data.utils import get_datasets_from_cfg, get_holdout_dataset
 from src.flower.train import train_flower
 from src.utils.evaluation import get_evaluation_fn
 from src.utils.stochasticity import set_seed
@@ -21,6 +22,9 @@ def run(cfg):
     OmegaConf.resolve(cfg)
     experiment_folder = get_exp_folder()
     cfg.experiment.folder = str(experiment_folder)
+    if "dry_run" in cfg:
+        assert cfg.dry_run
+        return
     print(OmegaConf.to_yaml(cfg))
     init_wandb(cfg)
 
@@ -60,7 +64,8 @@ def run(cfg):
             n_rounds=cfg.train_config.train_epochs,
             experiment_folder=experiment_folder,
             strategy_kwargs={"fraction_fit": 0.5, "fraction_evaluate": 1.0},
-            seed=cfg.general.seed
+            seed=cfg.general.seed,
+            client_resources=OmegaConf.to_container(cfg.client_resources)
         )
         tmp_corr = eval_fn(profiler=profiler_fn(init_model=model), iter=0)
         print("Got correlation: ", tmp_corr)
@@ -72,6 +77,7 @@ def run(cfg):
 
 
 if __name__ == "__main__":
+    OmegaConf.register_new_resolver("uuid", lambda: str(uuid.uuid4())[:8])
     load_dotenv()
     set_torch_flags()
     run()

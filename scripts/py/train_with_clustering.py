@@ -1,5 +1,6 @@
 import pickle
 import random
+from copy import deepcopy
 from functools import partial
 
 import torch
@@ -40,12 +41,13 @@ def train_cluster(cfg, trainsets, valsets, experiment_folder, cluster_idx):
         strategy_kwargs=OmegaConf.to_container(cfg.strategy),
         model_save_name=f"cluster_model_{cluster_idx}.pth",
         seed=cfg.general.seed,
-        model_return_strategy="best_accuracy"
+        model_return_strategy="best_accuracy",
+        client_resources=OmegaConf.to_container(cfg.client_resources),
     )
 
     print(f"Training cluster {cluster_idx} - ENDED")
 
-    return model. history
+    return deepcopy(model), history
 
 
 @hydra.main(version_base=None, config_path="../../conf", config_name="train_clustering")
@@ -102,10 +104,10 @@ def run(cfg):
     accuracy = get_clustering_accuracy(cluster_models, clusterer, holdout_datasets)
     pd.DataFrame(accuracy).to_csv(home_folder / f"ho_accuracy_{n_clusters}.csv", index=False)
 
-    accuracy = get_clustering_accuracy(cluster_models, clusterer, valsets)
+    accuracy = get_clustering_accuracy(cluster_models, clusterer, valsets, clusters)
     pd.DataFrame(accuracy).to_csv(home_folder / f"val_accuracy_{n_clusters}.csv", index=False)
 
-    accuracy = get_clustering_accuracy(cluster_models, clusterer, trainsets)
+    accuracy = get_clustering_accuracy(cluster_models, clusterer, trainsets, clusters)
     pd.DataFrame(accuracy).to_csv(home_folder / f"train_accuracy_{n_clusters}.csv", index=False)
 
 

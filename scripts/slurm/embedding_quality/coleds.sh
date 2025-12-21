@@ -32,21 +32,21 @@ for seed in "${SEEDS[@]}"; do
 for bs in 1 2 4 8 16 32 48 64 96; do
 set_partition_by "$DATASET"
 
-all_temeratures="[0.05,0.2,0.5,1.0]"
+all_temperatures="[0.05,0.2,0.5,1.0]"
 all_fraction_fits="[0.5]"
 all_num_client_updates="[4]"
 model="set2set"
 
-srun -Q -N1 --ntasks=1 python -u scripts/py/train_coleds.py   \
+run_bg python scripts/py/train_coleds.py                      \
     $COMMON_ARGS                                              \
     model=$model                                              \
     train_config.fraction_fit=$all_fraction_fits              \
     train_config.num_client_updates=$all_num_client_updates   \
-    train_config.temperature=$all_temeratures                 \
+    train_config.temperature=$all_temperatures                \
     dataset=$DATASET                                          \
     general.seed=$seed                                        \
     train_config.batch_size=$bs                               \
-    partitioning.partition_by=$partition_by &
+    partitioning.partition_by=$partition_by
 
 done
 done
@@ -67,7 +67,7 @@ for model in "${all_models[@]}"; do
 
 all_fraction_fits="[0.05,0.25,0.5,1.0]"
 all_batch_sizes="[16]"
-all_temeratures="[0.2]"
+all_temperatures="[0.2]"
 all_num_client_updates="[4]"
 
 ARGS="
@@ -76,13 +76,13 @@ ARGS="
     train_config.fraction_fit=$all_fraction_fits              \
     train_config.num_client_updates=$all_num_client_updates   \
     train_config.batch_size=$all_batch_sizes                  \
-    train_config.temperature=$all_temeratures                 \
+    train_config.temperature=$all_temperatures                 \
     dataset=$DATASET                                          \
     general.seed=$seed                                        \
     partitioning.partition_by=$partition_by
 "
 
-srun -Q -N1 --ntasks=1 python -u scripts/py/train_coleds.py $ARGS &
+run_bg python scripts/py/train_coleds.py $ARGS
 
 done
 done
@@ -100,20 +100,20 @@ set_partition_by "$DATASET"
 
 all_num_client_updates="[1,2,4,8]"
 model="set2set"
-all_batch_sizes="[16]"
+all_batch_sizes="[8,16]"
 all_fraction_fits="[0.05,0.25,0.5,1.0]"
-all_temeratures="[0.2]"
+all_temperatures="[0.2]"
 
-srun -Q -N1 --ntasks=1 python -u scripts/py/train_coleds.py   \
+run_bg python scripts/py/train_coleds.py   \
     $COMMON_ARGS                                              \
     model=$model                                              \
     train_config.batch_size=$all_batch_sizes                  \
     train_config.fraction_fit=$all_fraction_fits              \
     train_config.num_client_updates=$all_num_client_updates   \
-    train_config.temperature=$all_temeratures                 \
+    train_config.temperature=$all_temperatures                \
     dataset=$DATASET                                          \
     general.seed=$seed                                        \
-    partitioning.partition_by=$partition_by                   &
+    partitioning.partition_by=$partition_by
 
 done
 done
@@ -131,26 +131,26 @@ set_partition_by "$DATASET"
 all_models=("set2set" "clmean")
 all_batch_sizes=(16 32)
 all_fraction_fits=(0.25 0.5)
-all_temeratures=(0.2 0.5)
+all_temperatures=(0.2 0.5)
 all_num_client_updates=(4 8)
 
 for model in "${all_models[@]}"; do
 for batch_size in "${all_batch_sizes[@]}"; do
 for fraction_fit in "${all_fraction_fits[@]}"; do
-for temperature in "${all_temeratures[@]}"; do
+for temperature in "${all_temperatures[@]}"; do
 for num_client_updates in "${all_num_client_updates[@]}"; do
 
 # run individual tests to balance the load across the tasks
-srun -Q -N1 --ntasks=1 python -u scripts/py/train_coleds.py   \
-    $COMMON_ARGS                                              \
-    model=$model                                              \
-    train_config.batch_size=$batch_size                       \
-    train_config.fraction_fit=$fraction_fit                   \
-    train_config.num_client_updates=$num_client_updates       \
-    train_config.temperature=$temperature                     \
-    dataset=$DATASET                                          \
-    general.seed=$seed                                        \
-    partitioning.partition_by=$partition_by                   &
+run_bg python scripts/py/train_coleds.py                 \
+    $COMMON_ARGS                                         \
+    model=$model                                         \
+    train_config.batch_size=$batch_size                  \
+    train_config.fraction_fit=$fraction_fit              \
+    train_config.num_client_updates=$num_client_updates  \
+    train_config.temperature=$temperature                \
+    dataset=$DATASET                                     \
+    general.seed=$seed                                   \
+    partitioning.partition_by=$partition_by
 
 
 done
