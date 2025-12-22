@@ -1,5 +1,6 @@
 defaults:
   - model: simple_net
+  - dataset: femnist
   - optimizer: adam
   - _self_
 folder: ...  # insert the path of the folder where the model is
@@ -28,5 +29,5 @@ wandb:
   loggin_keys: []
 hydra:
   run:
-    dir: ${folder}
+    dir: ${folder}/${train_config.n_clusters}
   output_subdir: ${folder}/.clustering_${train_config.n_clusters}

@@ -6,4 +6,6 @@ final_evaluation:
   dataset_size: 20
   p: 0.9
 hydra:
+  run:
+    dir: ${folder}
   output_subdir: ${folder}/.visualization

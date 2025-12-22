@@ -65,10 +65,11 @@ def load_profiler(cfg):
     folder = Path(cfg.folder)
     profiler_config = OmegaConf.load(folder / ".hydra" / "config.yaml")
     output_folder = Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)
-    cluster_folder = folder / str(cfg.train_config.n_clusters)
-    assert str(output_folder).endswith(str(cluster_folder)), f"{cluster_folder} {output_folder}"
-    assert cfg.dataset.dataset_name == profiler_config.dataset.dataset_name
-    assert profiler_config.dataset.dataset_name in {"femnist", "synthetic"}
+    if "train_config" in cfg:
+        cluster_folder = folder / str(cfg.train_config.n_clusters)
+        assert str(output_folder).endswith(str(cluster_folder)), f"{cluster_folder} {output_folder}"
+        assert cfg.dataset.dataset_name == profiler_config.dataset.dataset_name
+        assert profiler_config.dataset.dataset_name in {"femnist", "synthetic"}
 
     profiler_type = profiler_config["profiler"]
     if profiler_type == "coleds":

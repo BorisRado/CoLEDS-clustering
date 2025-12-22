@@ -72,6 +72,7 @@ def run(cfg):
         print("Experiment was run already. Delete CSV files if want to repeat")
         return
 
+    print(OmegaConf.to_yaml(cfg))
     set_seed(cfg.general.seed)
     datasets = load_femnist_datasets()
 
