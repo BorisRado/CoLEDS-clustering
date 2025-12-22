@@ -2,6 +2,7 @@ defaults:
   - model: clmean
   - optimizer: adam
   - _self_
+profiler: coleds
 dataset:
   dataset_size: 1000
   input_shape: [3, 32, 32]

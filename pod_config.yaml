@@ -1,3 +1,4 @@
+# configuration for running time measurements on colext
 apiVersion: v1
 kind: Pod
 metadata:
@@ -8,7 +9,7 @@ spec:
     image: flserver:5000/slwr/BASEIMAGE:latest
     stdin: true
     tty: true
-    command: ["./slurm/measure_cem_runtime.sh"]
+    command: ["./scripts/sh/measure_profiler_runtime.sh"]
     # command: ["/bin/bash"]
     env:
       - name: PYTHONPATH
