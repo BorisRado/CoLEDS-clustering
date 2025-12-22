@@ -1,7 +1,6 @@
 #!/bin/bash
 
 export HYDRA_FULL_ERROR=1
-RUN_ID="tmp_times"
 
 FOLDER="results"
 
@@ -10,7 +9,7 @@ for dataset_size in 250 500 750 1000 1250 1500 1750 2000; do
     ARGS="dataset.dataset_size=${dataset_size} n_evaluations=16 +folder=${FOLDER}"
     echo $ARGS
 
-    python scripts/py/measure_profiler_time.py profiler=wd +cem=wd model=simple_net $ARGS
+    python scripts/py/measure_profiler_time.py profiler=wd +cem=wdp model=simple_net $ARGS
     python scripts/py/measure_profiler_time.py profiler=lgp +cem=logit model=simple_net $ARGS
     python scripts/py/measure_profiler_time.py profiler=coleds model=clmean $ARGS
     python scripts/py/measure_profiler_time.py profiler=coleds model=set2set $ARGS

@@ -24,7 +24,7 @@ def _get_random_dataset(dataset_size, input_shape):
     )
 
 
-@hydra.main(version_base=None, config_path="../conf", config_name="execution_time")
+@hydra.main(version_base=None, config_path="../../conf", config_name="execution_time")
 def run(cfg):
 
     print(OmegaConf.to_yaml(cfg))
@@ -95,7 +95,8 @@ def run(cfg):
             continue
 
         computation_times.append(end_time - start_time)
-        time.sleep(10.0)  # to cool down a bit
+        time.sleep(2.0)  # to cool down a bit
+        print(idx)
 
     data = {
         "GPU": torch.cuda.is_available(),
