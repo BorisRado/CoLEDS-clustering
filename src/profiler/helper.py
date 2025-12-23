@@ -1,13 +1,16 @@
 from pathlib import Path
 
+import hydra
 import torch
 from hydra.utils import instantiate
 from hydra.core.config_store import OmegaConf
 
-from src.utils.stochasticity import TempRng
 from src.profiler.single_model_profiler import SingleModelProfiler
 from src.profiler.es_profiler import EmbeddingSpaceProfiler
 from src.profiler.wd_profiler import WeightDiffProfiler
+from src.profiler.logit_profiler import LogitProfiler
+from src.profiler.label_dist_profiler import LabelProfiler
+from src.data.utils import get_holdout_dataset
 
 
 
@@ -43,10 +46,30 @@ def load_wd_profiler(profiler_config, folder):
     )
 
 
+def load_logit_profiler(profiler_config, folder):
+    encoder_model = instantiate(profiler_config.model)
+    fl_model_path = folder / "fl_model.pth"
+    public_dataset = get_holdout_dataset(profiler_config.public_dataset)
+    if fl_model_path.exists():
+        print("Loading pre-existing weights")
+        encoder_model.load_state_dict(torch.load(fl_model_path), strict=True)
+    return LogitProfiler(
+        init_model=encoder_model,
+        public_dataset=public_dataset,
+        **OmegaConf.to_container(profiler_config.profiling),
+        optim_kwargs=OmegaConf.to_container(profiler_config.optimizer),
+    )
+
+
 def load_profiler(cfg):
     folder = Path(cfg.folder)
     profiler_config = OmegaConf.load(folder / ".hydra" / "config.yaml")
-    assert profiler_config.dataset.dataset_name in {"femnist", "synthetic"}
+    output_folder = Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)
+    if "train_config" in cfg:
+        cluster_folder = folder / str(cfg.train_config.n_clusters)
+        assert str(output_folder).endswith(str(cluster_folder)), f"{cluster_folder} {output_folder}"
+        assert cfg.dataset.dataset_name == profiler_config.dataset.dataset_name
+        assert profiler_config.dataset.dataset_name in {"femnist", "synthetic"}
 
     profiler_type = profiler_config["profiler"]
     if profiler_type == "coleds":
@@ -58,4 +81,10 @@ def load_profiler(cfg):
     elif profiler_type == "wd":
         profiler = load_wd_profiler(profiler_config, folder)
 
-    return profiler, folder
+    elif profiler_type == "logit":
+        profiler = load_logit_profiler(profiler_config, folder)
+
+    elif profiler_type == "label":
+        profiler = LabelProfiler(cfg.dataset.n_classes)
+
+    return profiler, output_folder

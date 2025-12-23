@@ -69,6 +69,7 @@ def run(cfg):
             experiment_folder=experiment_folder,
             strategy_kwargs=OmegaConf.to_container(cfg.strategy),
             seed=cfg.general.seed,
+            client_resources=OmegaConf.to_container(cfg.client_resources),
         )
         tmp_corr = eval_fn(
             profiler=profiler_fn(model=model),

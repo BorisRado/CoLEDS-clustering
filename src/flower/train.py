@@ -46,6 +46,7 @@ def train_flower(
     seed,
     model_save_name="fl_model.pth",
     model_return_strategy="latest",
+    client_resources={"num_cpus": 2, "num_gpus": 0.2},
 ):
     assert set(client_fn_kwargs.keys()) == {"trainsets", "valsets", "batch_size", "train_fn"}
     assert model_return_strategy in {"latest", "best_accuracy"}
@@ -72,11 +73,12 @@ def train_flower(
             valset=vs,
             model=deepcopy(model),
             batch_size=batch_size,
-            train_fn=train_fn
+            train_fn=train_fn,
+            seed=seed,
         ).to_client()
 
     file = str(experiment_folder / model_save_name)
-    strategy_clz = get_strategy_with_chechpoint(FedAvg, file, deepcopy(model))
+    strategy_clz = get_strategy_with_chechpoint(FedAvg, file, deepcopy(model), base_seed=seed)
 
     add_defaults_to_strategy_kwargs(strategy_kwargs)
     strategy = strategy_clz(
@@ -84,9 +86,9 @@ def train_flower(
         on_fit_config_fn=lambda *args, **kwargs: optim_kwargs
     )
 
-    cr = {"num_cpus": 4}
-    if torch.cuda.is_available():
-        cr["num_gpus"] = 0.5
+    cr = client_resources.copy()
+    if not torch.cuda.is_available():
+        _ = cr.pop("num_gpus", None)
 
     set_seed(seed)
     history = start_simulation(

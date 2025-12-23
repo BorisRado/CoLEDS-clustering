@@ -10,12 +10,12 @@ from src.utils.stochasticity import set_seed
 
 # Define Flower client
 class FlowerClient(NumPyClient):
-    def __init__(self, trainset, valset, model, batch_size, train_fn):
+    def __init__(self, trainset, valset, model, batch_size, train_fn, seed):
         super().__init__()
-        set_seed()
+        set_seed(seed)
         self.model = model
         self.trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True)
-        self.valloader = DataLoader(valset, batch_size=batch_size, shuffle=False)
+        self.valloader = DataLoader(valset, batch_size=batch_size*2, shuffle=False)
         self.train_fn = train_fn
 
     def get_parameters(self, config):
@@ -23,6 +23,7 @@ class FlowerClient(NumPyClient):
         return get_parameters(self.model)
 
     def fit(self, parameters, config):
+        set_seed(config.pop("_seed"))
         set_parameters(self.model, parameters)
         optimizer = init_optimizer(self.model.parameters(), **config)
         for _ in range(2):

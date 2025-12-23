@@ -15,6 +15,7 @@ slurm/history
 *.out
 *.env
 *.txt
+!requirements.txt
 *.csv
 *.pth
 *.zip

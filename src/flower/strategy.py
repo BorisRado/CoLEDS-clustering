@@ -13,7 +13,7 @@ def _has_converged_plateau(accuracies, patience=5):
     return all(x >= accuracies[-1] for x in accuracies[-patience:-1])
 
 
-def get_strategy_with_chechpoint(base_strategy, file, model):
+def get_strategy_with_chechpoint(base_strategy, file, model, base_seed):
     class CustomStrategy(base_strategy):
         def __init__(self, evaluation_frequency, *args, **kwargs):
             super().__init__(*args, **kwargs)
@@ -22,12 +22,16 @@ def get_strategy_with_chechpoint(base_strategy, file, model):
             self.converged = False
             self.evaluation_frequency = evaluation_frequency
             self.max_accuracy = -1
+            self.base_seed = base_seed
 
-        def configure_fit(self, *args, **kwargs):
+        def configure_fit(self, server_round, parameters, client_manager):
             if self.converged:
                 return []
             else:
-                return super().configure_fit(*args, **kwargs)
+                configs = super().configure_fit(server_round, parameters, client_manager)
+                for c in configs:
+                    c[1].config["_seed"] = self.base_seed + server_round
+                return configs
 
         def configure_evaluate(self, server_round, parameters, client_manager):
             if self.converged or server_round % self.evaluation_frequency != 0:

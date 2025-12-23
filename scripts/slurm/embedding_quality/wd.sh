@@ -30,13 +30,13 @@ for optimizer in adam; do
 
 set_partition_by "$DATASET"
 
-srun -Q -N1 --ntasks=1 python -u scripts/py/evaluate_wd_profiling.py      \
-    $COMMON_ARGS                                                          \
-    profiling.ft_epochs=$ft_epochs                                        \
-    dataset=$DATASET                                                      \
-    partitioning.partition_by=$partition_by                               \
-    general.seed=$seed                                                    \
-    optimizer=$optimizer &
+run_bg python scripts/py/evaluate_wd_profiling.py  \
+    $COMMON_ARGS                                   \
+    profiling.ft_epochs=$ft_epochs                 \
+    dataset=$DATASET                               \
+    partitioning.partition_by=$partition_by        \
+    general.seed=$seed                             \
+    optimizer=$optimizer
 
 done
 done
