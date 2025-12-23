@@ -4,7 +4,7 @@
 #SBATCH --time=5:00:00
 #SBATCH --cpus-per-task=16
 #SBATCH --gpus-per-task=1
-#SBATCH --mem=32G
+#SBATCH --mem-per-cpu=2G
 #SBATCH --out=logs/femnist_wo_clustering.txt
 
 source scripts/slurm/accuracy_gains/common.sh

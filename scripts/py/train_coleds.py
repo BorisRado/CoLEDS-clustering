@@ -98,6 +98,10 @@ def run(cfg, trainsets, valsets):
         else:
             rounds_without_improvement += 1
 
+        if "always_save_model" in cfg.experiment: # save model even if correlation did not increase
+            print("Saving model weights regardless of correlation")
+            torch.save(model.state_dict(), experiment_folder / "model_weights.pth")
+
         if rounds_without_improvement >= cfg.general.patience:
             print("Early exit...")
             break

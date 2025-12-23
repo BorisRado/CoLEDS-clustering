@@ -62,7 +62,8 @@ def run(cfg):
             optim_kwargs=OmegaConf.to_container(cfg.optimizer),
             n_rounds=cfg.general.epochs_per_iteration,
             experiment_folder=experiment_folder,
-            strategy_kwargs={},
+            strategy_kwargs=OmegaConf.to_container(cfg.strategy),
+            client_resources=OmegaConf.to_container(cfg.client_resources),
             seed=cfg.general.seed,
         )
         tmp_corr = eval_fn(
