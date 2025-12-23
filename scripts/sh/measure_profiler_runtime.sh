@@ -9,12 +9,12 @@ for dataset_size in 250 500 750 1000 1250 1500 1750 2000; do
     ARGS="dataset.dataset_size=${dataset_size} n_evaluations=16 +folder=${FOLDER}"
     echo $ARGS
 
-    python scripts/py/measure_profiler_time.py profiler=wd +cem=wdp model=simple_net $ARGS
-    python scripts/py/measure_profiler_time.py profiler=lgp +cem=logit model=simple_net $ARGS
-    python scripts/py/measure_profiler_time.py profiler=coleds model=clmean $ARGS
-    python scripts/py/measure_profiler_time.py profiler=coleds model=set2set $ARGS
-    python scripts/py/measure_profiler_time.py profiler=es model=simple_net $ARGS
-    python scripts/py/measure_profiler_time.py profiler=es model=beta_vae $ARGS
+    python3 scripts/py/measure_profiler_time.py profiler=wdp +cem=wdp model=simple_net $ARGS
+    python3 scripts/py/measure_profiler_time.py profiler=lgp +cem=logit model=simple_net $ARGS
+    python3 scripts/py/measure_profiler_time.py profiler=coleds model=clmean $ARGS
+    python3 scripts/py/measure_profiler_time.py profiler=coleds model=set2set $ARGS
+    python3 scripts/py/measure_profiler_time.py profiler=es model=simple_net $ARGS
+    python3 scripts/py/measure_profiler_time.py profiler=es model=beta_vae $ARGS
 
 done
 

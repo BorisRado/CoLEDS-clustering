@@ -1,7 +1,9 @@
-#!/bin/bash
+#!/bin/bash -l
 
-source ~/.venv/flower/bin/activate
+source ~/.venv/colext/bin/activate
 colext_launch_job -p
+
+LOCAL_FOLDER="$(pwd)/outputs/colext_measure_time"
 
 # start the pods on all the devices
 for device in jao1 jn3 jon1 jxn1; do
@@ -40,7 +42,7 @@ copy_data_from_running_pods() {
   echo "$pod_info" | while read -r pod_name phase; do
     echo "$pod_name is in $phase phase"
     if [[ "$phase" == "Running" ]]; then
-      local_dir="/home/radovib/fl_clustering/data/raw/$pod_name"
+      local_dir="${LOCAL_FOLDER}/$pod_name"
       mkdir -p "$local_dir"
       mk cp "$pod_name:results/" "$local_dir"  # Copy the folder from the pod to the local directory
       echo "Copying..."

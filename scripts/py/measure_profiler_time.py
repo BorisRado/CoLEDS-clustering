@@ -71,7 +71,7 @@ def run(cfg):
         )
 
     else:
-        raise Exception(f"Unknown profiler {profiler_name}")
+        raise Exception("Unknown profiler " + str(profiler_name))
 
     ds_size = str(cfg.dataset.dataset_size)
     exp_json_filepath = experiment_folder / f"{str(profiler)}_{ds_size}.json"
@@ -102,6 +102,7 @@ def run(cfg):
         "GPU": torch.cuda.is_available(),
         "times": computation_times,
         "config": OmegaConf.to_container(cfg),
+        "profiler": cfg.profiler
     }
     with open(exp_json_filepath, "w") as fp:
         json.dump(data, fp, indent=4)

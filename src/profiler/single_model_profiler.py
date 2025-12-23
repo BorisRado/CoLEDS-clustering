@@ -20,8 +20,7 @@ class SingleModelProfiler(Profiler):
     @check_dtype
     def get_embedding(self, dataset):
         assert isinstance(dataset, TensorDataset)
-        assert self.device == dataset.tensors[0].device
-        x = dataset.tensors[0]
+        x = dataset.tensors[0].to(self.device)
         emb = self.model(x)
         return emb.cpu().numpy()
 
