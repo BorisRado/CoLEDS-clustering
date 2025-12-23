@@ -1,5 +1,6 @@
 import os
 import json
+from glob import glob
 from pathlib import Path
 
 import wandb
@@ -176,7 +177,8 @@ def get_wd_dataframe(refresh=False, number_of_seeds=None):
         dataset = config["dataset.dataset_name"]
         record = {
             "dataset": dataset,
-            "max_correlation": df["correlation"].max()
+            "max_correlation": df["correlation"].max(),
+            "correlation_late_training": df["correlation"].dropna().iloc[-1],
         }
         data.append(record)
     df = pd.DataFrame(data)
@@ -190,23 +192,38 @@ def get_wd_dataframe(refresh=False, number_of_seeds=None):
     return df
 
 
-def get_wd_correlations_late_in_training():
-    runs = get_project_runs()
-    wd_runs = [r for r in runs if r.config["profiler"] == "wd"]
+def get_logit_dataframe(refresh=False, number_of_seeds=None):
+    save_df_path = "data/all_logit_best_correlations.csv"
+    if not refresh:
+        try:
+            return pd.read_csv(save_df_path)
+        except FileNotFoundError:
+            print("Could not load data. Re-downloading")
+            return get_logit_dataframe(refresh=True, number_of_seeds=number_of_seeds)
 
+    runs = get_project_runs()
     data = []
-    for r in wd_runs:
-        df = get_run_dataframe(r)
-        df = df[df["table"].isna()].reset_index(drop=True)
-        correlation = df[~df["correlation"].isna()].reset_index(drop=True).iloc[-1]["correlation"]
-        data.append({
-            "dataset": r.config["dataset.dataset_name"],
-            "max_correlation": correlation
-        })
+    for run in runs:
+        config = run.config
+        if config["profiler"] != "logit":
+            continue
+        df = get_run_dataframe(run)
+        dataset = config["dataset.dataset_name"]
+        record = {
+            "dataset": dataset,
+            "max_correlation": df["correlation"].max(),
+            "correlation_late_training": df["correlation"].dropna().iloc[-1],
+        }
+        data.append(record)
     df = pd.DataFrame(data)
     df["dataset"] = df["dataset"].map(DATASET_NAME_MAPPING)
-    wddf_late_training = df.groupby("dataset")["max_correlation"].agg(["mean", "std"])
-    return wddf_late_training
+
+    # sanity check
+    if number_of_seeds is not None:
+        assert (df.groupby("dataset").size() == number_of_seeds).all()
+
+    df.to_csv(save_df_path, index=False)
+    return df
 
 
 def filter_df(df, filters):
@@ -241,9 +258,9 @@ def set_matplotlib_configuration(fontsize=18):
     # matplotlib configuration
     plt.style.use("seaborn-v0_8-whitegrid")
 
-    cmap = sns.color_palette("colorblind", 4)
+    cmap = sns.color_palette("colorblind", 6)
     mpl.rcParams.update({
-        "figure.dpi": 400, # so it's bigger when calling plt.show()
+        "figure.dpi": 200, # so it's bigger when calling plt.show()
 
         # LaTeX text rendering
         "text.usetex": True,
@@ -282,5 +299,98 @@ def set_matplotlib_configuration(fontsize=18):
     }
     return {
         "error_kw": {"capthick": 0.8, "elinewidth": 0.8, "capsize": 2},
-        "color": [cmap[i] for i in range(4)]
+        "color": [cmap[i] for i in range(6)]
     }, savefig_kwargs
+
+
+def get_config_key(file, key):
+    tmp = file.split("/")[0]
+    tmp = tmp[tmp.find(key) + len(key) + 1:].split("_")[0]
+    return tmp
+
+
+def get_num_clusters(file):
+    return int(file.split("/")[1])
+
+
+def get_accuracy_with_clustering(base_folder, data_partition, weighting_method):
+    assert weighting_method in {"average", "weighted_average"}
+    current_directory = os.getcwd()
+    os.chdir(base_folder)
+    def compute_accuracy(df):
+        if weighting_method == "weighted_average":
+            return (df["accuracy"] * df["dataset_size"]).sum() / df["dataset_size"].sum()
+        else:
+            return df["accuracy"].mean()
+    data = []
+    try:
+        filename = f"{data_partition}_accuracy.csv"
+        for file in glob(f"wd_seed_*/*/{filename}"):
+            num_clusters = get_num_clusters(file)
+            df = pd.read_csv(file)
+            data.append({
+                "method": "WDP",
+                "acc": compute_accuracy(df),
+                "meta": "",
+                "num_clusters": num_clusters,
+                "seed": int(get_config_key(file, "seed"))
+            })
+
+        # for file in glob(f"wd_pretrained*/*/{filename}"):
+        #     num_clusters = get_num_clusters(file)
+        #     df = pd.read_csv(file)
+        #     data.append({
+        #         "method": "WDP - Pretraining",
+        #         "acc": compute_accuracy(df),
+        #         "meta": "",
+        #         "num_clusters": num_clusters,
+        #         "seed": int(get_config_key(file, "seed"))
+        #     })
+
+        for file in glob(f"es_*/*/{filename}"):
+            num_clusters = get_num_clusters(file)
+            df = pd.read_csv(file)
+            model = get_config_key(file, "model")
+            method = {
+                "simple": "REPA",
+                "beta": "AESP"
+            }[model]
+            data.append({
+                "method": method,
+                "acc": compute_accuracy(df),
+                "meta": "",
+                "num_clusters": num_clusters,
+                "seed": int(get_config_key(file, "seed"))
+            })
+
+        for file in glob(f"coleds_bs*/*/{filename}"):
+            num_clusters = get_num_clusters(file)
+            ff = float(get_config_key(file, "ff"))
+            bs = int(get_config_key(file, "bs"))
+            df = pd.read_csv(file)
+
+            data.append({
+                "method": "CoLEDS",
+                "acc": compute_accuracy(df),
+                "meta": str(ff) + " " + str(bs),
+                "num_clusters": num_clusters,
+                "seed": int(get_config_key(file, "seed"))
+            })
+
+
+        for file in glob(f"label*/*/{filename}"):
+            num_clusters = get_num_clusters(file)
+            df = pd.read_csv(file)
+
+            data.append({
+                "method": "LbP",
+                "num_clusters": num_clusters,
+                "acc": compute_accuracy(df),
+                "meta": "",
+                "seed": int(get_config_key(file, "seed"))
+            })
+        return pd.DataFrame(data)
+    except Exception as e:
+        print(e)
+    finally:
+        os.chdir(current_directory)
