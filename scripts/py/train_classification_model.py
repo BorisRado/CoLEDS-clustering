@@ -9,7 +9,7 @@ from hydra.utils import instantiate
 from hydra.core.config_store import OmegaConf
 
 from src.utils.stochasticity import set_seed
-from src.data.utils import load_femnist_datasets, split_tensor_dataset
+from src.data.utils import load_client_datasets_as_TD, split_tensor_dataset
 from src.flower.train import train_flower
 from src.models.training_procedures import train_ce
 from src.models.evaluation_procedures import get_all_client_accuracy
@@ -23,10 +23,9 @@ def run(cfg):
 
     home_folder = get_exp_folder()
     cfg.experiment.folder = str(home_folder)
-    assert cfg.dataset.dataset_name == "femnist"
 
     set_seed(cfg.general.seed)
-    datasets = load_femnist_datasets()
+    datasets = load_client_datasets_as_TD(cfg)
 
     # shuffle the datasets since femnist data loading is deterministic
     random.shuffle(datasets)

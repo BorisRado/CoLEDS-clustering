@@ -228,6 +228,33 @@ def load_femnist_datasets():
     return datasets
 
 
+def load_client_datasets_as_TD(cfg):
+    if cfg.dataset.dataset_name == "femnist":
+        return load_femnist_datasets()
+
+    partitioner = instantiate(cfg.partitioning)
+    transforms = instantiate(cfg.dataset.transforms)
+    datasets = partition_dataset(
+        cfg.dataset.dataset_name,
+        partitioner,
+        cfg.dataset.test_percentage,
+        transforms=transforms,
+        seed=cfg.general.seed
+    )
+    trainsets, valsets = zip(*datasets)
+    trainsets = to_pytorch_tensor_dataset(trainsets, n_classes=cfg.dataset.n_classes)
+    valsets = to_pytorch_tensor_dataset(valsets, n_classes=cfg.dataset.n_classes)
+    out_datasets = []
+    for idx, (ts, vs) in enumerate(zip(trainsets, valsets)):
+        tds = TensorDataset(*[
+                torch.cat([t1, t2], dim=0)
+                for t1, t2 in zip(ts.tensors, vs.tensors)]
+            )
+        tds._client_idx = idx
+        out_datasets.append(tds)
+    return out_datasets
+
+
 def split_tensor_dataset(dataset: TensorDataset, device: torch.device):
     tensors = dataset.tensors
     dataset_len = len(dataset)

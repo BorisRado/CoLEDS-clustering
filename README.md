@@ -31,7 +31,7 @@ Reproduce the hyperparameter analysis results:
 
 1. Execute all experiments:
    ```bash
-   for script in scripts/slurm/*.sh; do sbatch "$script"; done
+   for script in scripts/slurm/embedding_quality/*.sh; do [[ "$(basename "$script")" != "common.sh" ]] && sbatch "$script"; done
    ```
 
 2. Generate plots and visualizations:
@@ -53,7 +53,7 @@ Reproduce the accuracy comparison experiments:
 
 2. **Run all accuracy experiments**:
    ```bash
-   for script in scripts/slurm/accuracy_gains/*.sh; do sbatch "$script"; done
+   for script in scripts/slurm/accuracy_gains/*.sh; do [[ "$(basename "$script")" != "common.sh" ]] && sbatch "$script"; done
    ```
 
 3. **Generate results table**:

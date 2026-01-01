@@ -57,7 +57,10 @@ def run(cfg, trainsets, valsets):
     print("Number of parameters: ", sum(p.numel() for p in model.parameters()))
 
     # get all comparison values, i.e. before training and simple CEMs
-    eval_fn = get_evaluation_fn(cfg, trainsets, valsets, experiment_folder)
+    if valsets is not None:
+        eval_fn = get_evaluation_fn(cfg, trainsets, valsets, experiment_folder)
+    else:
+        eval_fn = lambda profiler, iter: iter
 
     profiler_fn = lambda mdl: SingleModelProfiler(model=copy.deepcopy(mdl))
     best_correlation = eval_fn(profiler=profiler_fn(model), iter=-1)

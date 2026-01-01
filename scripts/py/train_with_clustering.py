@@ -11,7 +11,7 @@ from hydra.utils import instantiate
 from hydra.core.config_store import OmegaConf
 
 from src.utils.stochasticity import set_seed
-from src.data.utils import load_femnist_datasets, split_tensor_dataset
+from src.data.utils import load_client_datasets_as_TD, split_tensor_dataset
 from src.clustering.clusterer import Clusterer
 from src.flower.train import train_flower
 from src.models.training_procedures import train_ce
@@ -74,7 +74,7 @@ def run(cfg):
 
     print(OmegaConf.to_yaml(cfg))
     set_seed(cfg.general.seed)
-    datasets = load_femnist_datasets()
+    datasets = load_client_datasets_as_TD(cfg)
 
     # shuffle the datasets since femnist data loading is deterministic
     random.shuffle(datasets)
@@ -89,7 +89,7 @@ def run(cfg):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     trainsets, valsets = zip(*[split_tensor_dataset(ds, device) for ds in trainsets])
 
-    clusterer = Clusterer(profiler, {"train": trainsets})
+    clusterer = Clusterer(profiler, {"train": trainsets}, **OmegaConf.to_container(cfg.clustering))
     clusters = clusterer.init_kmeans_model(n_clusters)
 
     cluster_models = {}
