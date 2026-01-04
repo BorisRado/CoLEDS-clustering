@@ -62,6 +62,22 @@ Reproduce the accuracy comparison experiments:
    ```
    Execute all cells. The final cell outputs a LaTeX-formatted table ready for publication.
 
+### 3. Accuracy Gains on CIFAR10
+
+Reproduce the accuracy comparison experiments:
+
+1. **Run all accuracy experiments**:
+   ```bash
+   for script in scripts/slurm/cifar_accuracy_gains/*.sh; do [[ "$(basename "$script")" != "common.sh" ]] && sbatch "$script"; done
+   ```
+
+2. **Generate results images and tables**:
+   ```bash
+   jupyter notebook analysis/femnist_accuracy.ipynb
+   ```
+   Execute all cells. The final cell outputs a LaTeX-formatted table ready for publication, images will be will be saved to `analysis/images`
+
+
 ### 3. Synthetic Dataset Visualizations
 
 Generate the synthetic dataset figures from the paper:
@@ -76,6 +92,11 @@ Generate the synthetic dataset figures from the paper:
    sbatch scripts/slurm/synthetic/all.sh
    ```
    Then execute the remaining cells in `analysis/synthetic_dataset.ipynb` to produce the figures.
+
+### 4. Capturing concept drift
+
+1. Run the `scripts/slurm/concept_drift/all.sh` script
+2. Execute the `analisys/concept_drift.ipynb` notebook.
 
 ## Implementation Details
 

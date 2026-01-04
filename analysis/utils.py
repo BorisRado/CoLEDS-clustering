@@ -226,6 +226,64 @@ def get_logit_dataframe(refresh=False, number_of_seeds=None):
     return df
 
 
+def get_pacfl_dataframe(refresh=False, number_of_seeds=None):
+    save_df_path = "data/all_pacfl_best_correlations.csv"
+    if not refresh:
+        try:
+            return pd.read_csv(save_df_path)
+        except FileNotFoundError:
+            print("Could not load data. Re-downloading")
+            return get_pacfl_dataframe(refresh=True, number_of_seeds=number_of_seeds)
+
+    runs = get_project_runs()
+    data = []
+    for run in runs:
+        config = run.config
+        if config["profiler"] != "pacfl":
+            continue
+        df = get_run_dataframe(run)
+        dataset = config["dataset.dataset_name"]
+        assert df["correlation"].shape[0] == 1
+        record = {
+            "dataset": dataset,
+            "max_correlation": df["correlation"].max(),
+            "correlation_late_training": df["correlation"].dropna().iloc[-1],
+        }
+        data.append(record)
+    df = pd.DataFrame(data)
+    df["dataset"] = df["dataset"].map(DATASET_NAME_MAPPING)
+
+    # sanity check
+    if number_of_seeds is not None:
+        assert (df.groupby("dataset").size() == number_of_seeds).all()
+
+    df.to_csv(save_df_path, index=False)
+    return df
+
+
+def add_bar_on_top(df, ax, offset, index_order):
+    n_datasets = len(index_order)
+    start = offset * n_datasets
+    end = start + n_datasets
+    wdp_bars = ax.patches[start:end]
+
+    for bar, dataset in zip(wdp_bars, index_order):
+        x = bar.get_x()
+        width = bar.get_width()
+        height = df.loc[dataset]["mean"]
+
+        ax.bar(
+            x,
+            height,
+            width=width,
+            align="edge",
+            color=bar.get_facecolor(),
+            hatch="//",
+            edgecolor="black",
+            linewidth=1.0,
+            zorder=bar.get_zorder() + 1,  # ensure it is drawn on top
+        )
+
 def filter_df(df, filters):
     s = pd.Series([True] * df.shape[0])
     remove_keys = []
@@ -303,8 +361,9 @@ def set_matplotlib_configuration(fontsize=18):
     }, savefig_kwargs
 
 
-def get_config_key(file, key):
-    tmp = file.split("/")[0]
+def get_config_key(file, key, idx=0):
+    tmp = file.split("/")[idx]
+    assert tmp.find(key) >= 0, f"Key not found! {file} {key}"
     tmp = tmp[tmp.find(key) + len(key) + 1:].split("_")[0]
     return tmp
 
@@ -313,11 +372,44 @@ def get_num_clusters(file):
     return int(file.split("/")[1])
 
 
-def get_accuracy_with_clustering(base_folder, data_partition, weighting_method):
+def get_entry(file, method, analysis_keys, compute_accuracy_fn):
+    df = pd.read_csv(file)
+    entry = {
+        "method": method,
+        "acc": compute_accuracy_fn(df),
+    }
+    if "coleds" in file and "save" in file:
+        entry["save"] = get_config_key(file, "save")
+    for key in analysis_keys:
+        if key == "seed":
+            entry["seed"] = int(get_config_key(file, key, 0))
+        elif key == "clustering_algorithm":
+            tmp_filename = file.replace("hierarchical_", "")
+            entry["clustering_algorithm"] = get_config_key(tmp_filename, "clustering", idx=1)
+        elif key == "ho":
+            entry["num_ho_clients"] = int(get_config_key(file, "ho", idx=1))
+        elif key == "mu":
+            entry["algorithm"] = "FedProx" if get_config_key(file, "mu", idx=1) == "0.001" else "FedAvg"
+        elif key == "num_clusters":
+            try:
+                num_clusters = int(file.split("/")[1])
+            except:
+                num_clusters = int(get_config_key(file, "clusters", 1))
+            entry["num_clusters"] = num_clusters
+        elif key in ["bs", "ff"]:
+            entry[key] = get_config_key(file, key)
+        else:
+            raise Exception(f"key {key}")
+    return entry
+
+
+def get_accuracy_with_clustering(base_folder, data_partition, weighting_method, analysis_keys=["num_clusters", "seed"], coleds_analysis_keys=["num_clusters", "seed"]):
     assert weighting_method in {"average", "weighted_average"}
     current_directory = os.getcwd()
     os.chdir(base_folder)
     def compute_accuracy(df):
+        if df["dataset_size"].sum() == 0:
+            return -1
         if weighting_method == "weighted_average":
             return (df["accuracy"] * df["dataset_size"]).sum() / df["dataset_size"].sum()
         else:
@@ -326,71 +418,32 @@ def get_accuracy_with_clustering(base_folder, data_partition, weighting_method):
     try:
         filename = f"{data_partition}_accuracy.csv"
         for file in glob(f"wd_seed_*/*/{filename}"):
-            num_clusters = get_num_clusters(file)
-            df = pd.read_csv(file)
-            data.append({
-                "method": "WDP",
-                "acc": compute_accuracy(df),
-                "meta": "",
-                "num_clusters": num_clusters,
-                "seed": int(get_config_key(file, "seed"))
-            })
-
-        # for file in glob(f"wd_pretrained*/*/{filename}"):
-        #     num_clusters = get_num_clusters(file)
-        #     df = pd.read_csv(file)
-        #     data.append({
-        #         "method": "WDP - Pretraining",
-        #         "acc": compute_accuracy(df),
-        #         "meta": "",
-        #         "num_clusters": num_clusters,
-        #         "seed": int(get_config_key(file, "seed"))
-        #     })
+            data.append(
+                get_entry(file, "WDP", analysis_keys, compute_accuracy)
+            )
 
         for file in glob(f"es_*/*/{filename}"):
-            num_clusters = get_num_clusters(file)
-            df = pd.read_csv(file)
-            model = get_config_key(file, "model")
             method = {
                 "simple": "REPA",
                 "beta": "AESP"
-            }[model]
-            data.append({
-                "method": method,
-                "acc": compute_accuracy(df),
-                "meta": "",
-                "num_clusters": num_clusters,
-                "seed": int(get_config_key(file, "seed"))
-            })
+            }[get_config_key(file, "model")]
+            data.append(
+                get_entry(file, method, analysis_keys, compute_accuracy)
+            )
 
-        for file in glob(f"coleds_bs*/*/{filename}"):
-            num_clusters = get_num_clusters(file)
-            ff = float(get_config_key(file, "ff"))
-            bs = int(get_config_key(file, "bs"))
-            df = pd.read_csv(file)
-
-            data.append({
-                "method": "CoLEDS",
-                "acc": compute_accuracy(df),
-                "meta": str(ff) + " " + str(bs),
-                "num_clusters": num_clusters,
-                "seed": int(get_config_key(file, "seed"))
-            })
-
+        for file in glob(f"coleds_*/*/{filename}"):
+            data.append(
+                get_entry(file, "CoLEDS", coleds_analysis_keys, compute_accuracy)
+            )
 
         for file in glob(f"label*/*/{filename}"):
-            num_clusters = get_num_clusters(file)
-            df = pd.read_csv(file)
-
-            data.append({
-                "method": "LbP",
-                "num_clusters": num_clusters,
-                "acc": compute_accuracy(df),
-                "meta": "",
-                "seed": int(get_config_key(file, "seed"))
-            })
-        return pd.DataFrame(data)
+            data.append(
+                get_entry(file, "LbP", analysis_keys, compute_accuracy)
+            )
+        df = pd.DataFrame(data)
     except Exception as e:
-        print(e)
+        print(f"Exception occurred: {type(e).__name__}: {e}")
+        return None
     finally:
         os.chdir(current_directory)
+    return df
