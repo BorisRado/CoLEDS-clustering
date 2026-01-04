@@ -1,0 +1,14 @@
+defaults:
+  - partitioning: dirichlet
+  - dataset: cifar10
+  - _self_
+profiler: pacfl
+general:
+  seed: 10
+wandb:
+  log_to_wandb: false
+  loggin_keys: []
+profiling:
+  num_basis: 5
+experiment:
+  name: ...

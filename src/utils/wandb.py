@@ -31,10 +31,7 @@ def get_value(config, key):
 def init_wandb(cfg):
     config = OmegaConf.to_container(cfg)
 
-    try:
-        profiler_name = cfg.profiler._target_.split(".")[-1]
-    except:
-        profiler_name = cfg.model._target_.split(".")[-1]
+    profiler_name = cfg.profiler
 
     config["profiler_name"] = profiler_name
     log_keys = cfg.wandb.loggin_keys

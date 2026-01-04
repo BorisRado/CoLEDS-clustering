@@ -1,9 +1,10 @@
 defaults:
   - model: simple_net
   - dataset: femnist
+  - partitioning: natural
   - optimizer: adam
   - _self_
-folder: ...  # insert the path of the folder where the model is
+folder: ...  # insert the path of the folder where the profiler is
 general:
   seed: 80
 train_config:
@@ -23,6 +24,9 @@ strategy:
 client_resources:
   num_cpus: 2
   num_gpus: 0.1
+
+clustering:
+  algorithm: kmeans
 
 wandb:
   log_to_wandb: false
