@@ -10,6 +10,7 @@ slurm/history
 .ipynb_checkpoints
 .DS_Store
 
+*.docx
 *.pdf
 *.err
 *.out
