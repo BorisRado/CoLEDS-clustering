@@ -14,6 +14,8 @@ from src.profiler.single_model_profiler import SingleModelProfiler
 from src.profiler.wd_profiler import WeightDiffProfiler
 from src.profiler.logit_profiler import LogitProfiler
 
+from scripts.py.evaluate_pacfl_profiling import _compute_svd_bases_for_clients as pacfl_profile
+
 
 
 def _get_random_dataset(dataset_size, input_shape):
@@ -69,6 +71,12 @@ def run(cfg):
             public_dataset=_get_random_dataset(100, INPUT_SHAPE),
             optim_kwargs=OPTIM_KWARGS,
         )
+
+    elif profiler_name == "pacfl":
+        class PACFLProfiler:
+            def get_embedding(self, dataset):
+                return pacfl_profile([dataset], 8)[0]
+        profiler = PACFLProfiler()
 
     else:
         raise Exception("Unknown profiler " + str(profiler_name))

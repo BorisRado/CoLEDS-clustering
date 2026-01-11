@@ -7,8 +7,6 @@ def _check_input_shape(input_shape):
 
 
 class SimpleClfNet(nn.ModuleDict):
-    """Model (simple CNN adapted from 'PyTorch: A 60 Minute Blitz')"""
-
     def __init__(self, input_shape, n_classes) -> None:
         _check_input_shape(input_shape)
         fc_dim = input_shape[1] // 4 - 3
@@ -113,3 +111,30 @@ class VariationalAutoencoder(nn.ModuleDict):
         """Get latent embedding (mean) for input"""
         mu, _ = self.encode(x)
         return mu
+
+
+class SmallClfNet(nn.ModuleDict):
+
+    def __init__(self, input_shape, n_classes) -> None:
+        assert tuple(input_shape) == (3, 32, 32)
+        _check_input_shape(input_shape)
+        super().__init__({
+            "encoder": nn.Sequential(
+                nn.Conv2d(input_shape[0], 32, 5, stride=2),
+                nn.ReLU(),
+                nn.Conv2d(32, 48, 3, stride=2),
+                nn.ReLU(),
+                nn.Conv2d(48, 64, 3, stride=2),
+                nn.ReLU(),
+                nn.Flatten(start_dim=1),
+            ),
+            "clf_head": nn.Sequential(
+                nn.Linear(256, n_classes)
+            )
+        })
+
+    def forward(self, x):
+        return self["clf_head"](self["encoder"](x))
+
+    def get_embedding(self, x):
+        return self["encoder"](x)
